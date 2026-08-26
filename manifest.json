@@ -1,0 +1,10 @@
+{
+  "name": "mr-model",
+  "version": "1.0.0",
+  "min_mcp_server_version": "326",
+  "skill_md_sha256": "fd4f13cdad0bad10843d209ac2ac0ebbd86693ee33ad01472e92474a85d59bb2",
+  "skill_md_url": "https://raw.githubusercontent.com/Cesario121125/mr-model-skill/main/SKILL.md",
+  "manifest_url": "https://raw.githubusercontent.com/Cesario121125/mr-model-skill/main/manifest.json",
+  "updated_at": "2026-08-26T10:00:00Z",
+  "changelog": "v1.0.0 初始版本: 5 tool 决策树 + 辩证法 FULL 模式(3段式+<<<DIA>>> 11 字段) + 合规硬闸 OP_RE + 行情 skill 整合(a-stock-data) + manifest 提示式自更新 + 错误码全档映射"
+}
