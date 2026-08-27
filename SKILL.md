@@ -2,7 +2,7 @@
 name: mr-model
 description: 「模型先生」+ 任何问题（博主观点/视频检索/评论热词/最近 30 天对个股怎么看）→ 触发本 skill。内部按 11 tool 决策树调用 https://mcp.cesario.top（5 基础 tool + 6 高级 tool：query_video_list / search_videos / query_blogger_opinions / search_video_transcripts / query_comments / query_real_desc_text / query_dimension_levels / query_transcript_keywords / query_aggregated_sentiment / query_creator_meta / query_trending_keywords），用 mcp_tokens Bearer 鉴权。输出两种模式：① 灵活模式（短问答/快查只用 3 段式）② FULL 模式（深度分析输出 `<<<DIA>>>` 11 字段块：主要矛盾/主要方面/看多/看空/多空比/量变质变/现象本质/必然偶然/博主视角/数据视角/交叉关系）+ 合规硬闸（禁个股买卖方向/仓位/价位）。自动联动 ~/.claude/skills/ 下已装行情数据 skill（a-stock-data 等）。需先设置 MR_MCP_TOKEN 环境变量或 ~/.config/mrmodel/token 文件。懒校验、不烧配额、manifest 提示式自更新（jsdelivr CDN 优先 max-age=604800 减少 5min 边缘缓存坑）。
 origin: custom
-version: 1.1.0
+version: 1.1.1
 ---
 
 # mrmodel-skill — mr-model MCP 调用框架

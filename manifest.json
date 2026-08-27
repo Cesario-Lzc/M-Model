@@ -2,9 +2,9 @@
   "name": "mr-model",
   "version": "1.1.1",
   "min_mcp_server_version": "326",
-  "skill_md_sha256": "cf3aacd96881f70d30c283f58c285a594675c2ec0b281eec1fcccd8fc96053f3",
+  "skill_md_sha256": "85f45edc3016d08665f1694adf33d51662317ee8e1646a93317d1caf8093f648",
   "skill_md_url": "https://cdn.jsdelivr.net/gh/Cesario121125/M-Model@main/SKILL.md",
   "manifest_url": "https://cdn.jsdelivr.net/gh/Cesario121125/M-Model@main/manifest.json",
   "updated_at": "2026-08-27T06:37:17Z",
-  "changelog": "v1.1.1 公开仓正式名 M-Model (jsdelivr 镜像保留, GitHub 自动重定向) + 内部词清零 (用户名/开发者/内部规则术语/内部决策记录/内部时间标签) + 装机脚本 base64 重渲染. 前版: v1.1.0 五项易用性升级: 工具数 5->11 决策树全表 (新增 6 个高阶工具) + 灵活模式 / 完整模式 双模式选择 (短问答省 token) + 6 高阶工具使用范本 + 3 工具组合范式 (成本 4 次比 N 次联调省) + 第 9.8 节 ProMax 升级 3 步走 + 限时折扣 (本月底截止) + 第 8.2 节加 v0.1-r1 4 项业务策略契约要点 + 第 7.1 节 manifest URL 改 jsdelivr CDN 优先 (max-age=604800) + 附录 A 扩 5->11 工具输出结构 + 附录 B 加 v1.1.0 变更日志"
+  "changelog": "v1.1.1 公开仓正式名 M-Model (jsdelivr 镜像保留, GitHub 自动重定向) + 内部词清零 (用户名/开发者/内部规则术语/内部决策记录/内部时间标签) + 装机脚本 base64 重渲染. 前版: v1.1.0 (历史已发布版本, 此处仅作变更追溯) 五项易用性升级: 工具数 5->11 决策树全表 (新增 6 个高阶工具) + 灵活模式 / 完整模式 双模式选择 (短问答省 token) + 6 高阶工具使用范本 + 3 工具组合范式 (成本 4 次比 N 次联调省) + 第 9.8 节 ProMax 升级 3 步走 + 限时折扣 (本月底截止) + 第 8.2 节加 v0.1-r1 4 项业务策略契约要点 + 第 7.1 节 manifest URL 改 jsdelivr CDN 优先 (max-age=604800) + 附录 A 扩 5->11 工具输出结构 + 附录 B 加 v1.1.0 变更日志"
 }
