@@ -2,9 +2,9 @@
   "name": "mr-model",
   "version": "1.1.1",
   "min_mcp_server_version": "326",
-  "skill_md_sha256": "06c7800f2be348fb48402505b2da9e5f7e5189be6d86e8191a43fbdcec6e958d",
+  "skill_md_sha256": "88c5e1a10ee8a3d1171db7f0ec9e5af4a987b94f46dce886abc38640e5932a04",
   "skill_md_url": "https://cdn.jsdelivr.net/gh/Cesario121125/M-Model@main/SKILL.md",
   "manifest_url": "https://cdn.jsdelivr.net/gh/Cesario121125/M-Model@main/manifest.json",
-  "updated_at": "2026-08-27T08:02:18Z",
+  "updated_at": "2026-08-27T08:09:00Z",
   "changelog": "v1.1.1 修 SKILL.md 配额成本表（5 基础 base+per×N 公式 + 6 高级 per_row=0 + 单位\"次/月\"明确）+ README 精简（强调功能/引网页升级/成品化表述/加维护规范）+ 装机脚本 base64 重渲染. 前版: v1.1.0 (历史已发布版本) 公开仓正式名 M-Model + 内部词清零 + jsdelivr 镜像."
 }

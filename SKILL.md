@@ -111,9 +111,10 @@ curl -X POST https://mcp.cesario.top/mcp \
 
 #### 5 基础 tool
 
-> **配额公式**：`cost = ⌈base + 行数 × per⌉ 次/月`（向上取整，防拖库；非 list 返 base 单次）
+> **配额公式**：`cost = ⌈base + 行数 × per⌉ quota`（向上取整，防拖库；非 list 返 base 单次）
+> **单位**：**quota**（配额点，30 天滚动窗口；ProMax 享 1000 quota / 30 天，trial/plus/pro 锁死 0；SSOT 字段 `quota_limit` / `quota_cost` / `quota_remaining` 见 `backend/mcp_auth.py`）
 
-| Tool | 必填 | 关键可选 | 默认值 | 配额成本 (次/月) | 返回类型 |
+| Tool | 必填 | 关键可选 | 默认值 | 配额成本 (quota) | 返回类型 |
 |------|------|----------|--------|------------------|----------|
 | `query_video_list` | — | `page`, `page_size` (≤20) | page=1, page_size=20 | base=1, per=0.1×N（page_size=20 → 3） | **list[dict]**（单条 video 全字段） |
 | `search_videos` | `query` | `page`, `page_size` (≤20) | page=1, page_size=10 | base=1, per=0.1×N（page_size=10 → 2） | **list[dict]**（0 命中时返 `_hint` dict） |
@@ -123,9 +124,9 @@ curl -X POST https://mcp.cesario.top/mcp \
 
 #### 6 高级 tool（v1.1.0 新增）
 
-> **配额公式**：`cost = base 次/月`（高级 tool 全是 dict 返回，不走 per_row，base 已含计算成本）
+> **配额公式**：`cost = base quota`（高级 tool 全是 dict 返回，不走 per_row，base 已含计算成本）
 
-| Tool | 必填 | 关键可选 | 默认值 | 配额成本 (次/月) | 返回类型 |
+| Tool | 必填 | 关键可选 | 默认值 | 配额成本 (quota) | 返回类型 |
 |------|------|----------|--------|------------------|----------|
 | `query_real_desc_text` | `aweme_id` (18-20位) | — | — | 1 | **dict**（14 字段：VIDEO_LIST_ALLOWLIST + dialectics_tags + framework_dimensions + analysis_framework） |
 | `query_dimension_levels` | `aweme_id` | — | — | 1 | **dict**（8 维每维 level 0/1/2 + label 翻译 + 数据源 + 分析步骤） |
@@ -143,13 +144,13 @@ curl -X POST https://mcp.cesario.top/mcp \
 
 ### 3.3 配额保护策略（KISS：宁可少调不烧配额）
 
-> 单位：**次/月**（配额按月计，ProMax 享 1000 次/月，trial/plus/pro 锁死 0）
+> 单位：**quota**（配额点，30 天滚动窗口；ProMax 享 1000 quota / 30 天）
 
-1. **默认 page_size=20**（query_video_list 单次 cost=3），超 20 提示用户"是否需要翻第 2 页"（page=2 需用户显式确认）
-2. **search_videos page_size=10**（cost=2）+ **query_blogger_opinions limit=10**（cost=3，默认足够覆盖博主典型 7-30 天观点）
-3. **search_video_transcripts limit=5**（cost=3，snippet 30 字 × 5 = 150 字，token 经济）
-4. **query_comments 单次 1 个 aweme_id**（聚合 dict 统计，cost=1）
-5. **高级 tool base 1-2 次**（query_transcript_keywords / query_aggregated_sentiment / query_trending_keywords cost=2，含 jieba/NER/聚合计算；query_real_desc_text / query_dimension_levels / query_creator_meta cost=1）
+1. **默认 page_size=20**（query_video_list 单次 cost=3 quota），超 20 提示用户"是否需要翻第 2 页"（page=2 需用户显式确认）
+2. **search_videos page_size=10**（cost=2 quota）+ **query_blogger_opinions limit=10**（cost=3 quota，默认足够覆盖博主典型 7-30 天观点）
+3. **search_video_transcripts limit=5**（cost=3 quota，snippet 30 字 × 5 = 150 字，token 经济）
+4. **query_comments 单次 1 个 aweme_id**（聚合 dict 统计，cost=1 quota）
+5. **高级 tool base 1-2 quota**（query_transcript_keywords / query_aggregated_sentiment / query_trending_keywords cost=2 quota，含 jieba/NER/聚合计算；query_real_desc_text / query_dimension_levels / query_creator_meta cost=1 quota）
 6. **不级联调用**：拿不到结果就告诉用户，不无限重试
 
 ### 3.4 决策树禁忌
@@ -621,8 +622,8 @@ rm ~/.claude/skills/mr-model/manifest.json
 
 **v0.1-r1 契约要点**（2026-08-27 业务策略）：
 - trial / plus / pro **不享 MCP**（quota=0 锁死）
-- 新注册 20 次体验（`first_bonus`，promax 时清掉）
-- 只 **ProMax** 享 1000 次/月，admin / sub_admin 无限（-1）
+- 新注册 20 quota 体验（`first_bonus`，promax 时清掉）
+- 只 **ProMax** 享 1000 quota / 30 天，admin / sub_admin 无限（-1）
 
 ### 8.3 429 限流/配额
 
@@ -717,12 +718,12 @@ cp ~/.claude/skills/mr-model/manifest.json ~/.claude/skills/mr-model/
 
 **为啥 trial/plus 不享 MCP**？
 
-- 业务策略：trial/plus/pro 锁死 quota=0，只 ProMax 享 1000 次/月（业务策略 4 项契约要点，详主仓 Web 公告）
+- 业务策略：trial/plus/pro 锁死 quota=0，只 ProMax 享 1000 quota / 30 天（业务策略 4 项契约要点，详主仓 Web 公告）
 - 目的：把 MCP 这条产品线做出差异化（ProMax 是 A 股分析重度用户档）
 - 5 基础 tool 仍免费（视频/博主/评论 5 tool 走主仓 Web 端，无 MCP 也能查）
 - **6 高级 tool + 大配额 + 多用户共享 + 跨设备同步** = ProMax 独享价值
 
-**升级后立即可调**：1 token 跨设备不区分（iPhone/Mac/Linux 同一 token 都享 1000 次/月，1 用户 1 API key 策略）
+**升级后立即可调**：1 token 跨设备不区分（iPhone/Mac/Linux 同一 token 都享 1000 quota / 30 天，1 用户 1 API key 策略）
 
 ### 9.9 11 tool / 6 高级 tool 在哪看
 

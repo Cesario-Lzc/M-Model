@@ -47,37 +47,38 @@ trending = call("query_trending_keywords", days=7, top_n=20)
 
 ## 配额成本
 
-> **公式**：`cost = ⌈base + 行数 × per⌉ 次/月`（向上取整，防拖库；dict 返回走 base 单次）
-> **单位**：**次/月**（配额按月计，ProMax 享 1000 次/月，trial/plus/pro 锁死 0）
+> **公式**：`cost = ⌈base + 行数 × per⌉ quota`（向上取整，防拖库；dict 返回走 base 单次）
+> **单位**：**quota**（配额点，30 天滚动窗口；ProMax 享 1000 quota / 30 天，trial/plus/pro 锁死 0）
+> SSOT 字段：`quota_limit` / `quota_cost` / `quota_remaining`（`backend/mcp_auth.py` `TOOL_QUOTA_BASE` + `PER_ROW_WEIGHT` + `_calc_cost`）
 
 ### 5 基础 tool
 
 | Tool | base | per×N | 默认值成本 |
 |------|------|-------|-----------|
-| `query_video_list` | 1 | 0.1×N | page_size=20 → **3 次/月** |
-| `search_videos` | 1 | 0.1×N | page_size=10 → **2 次/月** |
-| `query_blogger_opinions` | 2 | 0.1×N | limit=10 → **3 次/月** |
-| `search_video_transcripts` | 2 | 0.05×N | limit=5 → **3 次/月** |
-| `query_comments` | 1 | 0（dict 聚合） | 1 aweme_id → **1 次/月** |
+| `query_video_list` | 1 | 0.1×N | page_size=20 → **3 quota** |
+| `search_videos` | 1 | 0.1×N | page_size=10 → **2 quota** |
+| `query_blogger_opinions` | 2 | 0.1×N | limit=10 → **3 quota** |
+| `search_video_transcripts` | 2 | 0.05×N | limit=5 → **3 quota** |
+| `query_comments` | 1 | 0（dict 聚合） | 1 aweme_id → **1 quota** |
 
 ### 6 高级 tool（per_row=0，dict 返回走 base）
 
 | Tool | base | 单次成本 |
 |------|------|----------|
-| `query_real_desc_text` | 1 | 1 次/月 |
-| `query_dimension_levels` | 1 | 1 次/月 |
-| `query_transcript_keywords` | 2 | 2 次/月 |
-| `query_aggregated_sentiment` | 2 | 2 次/月 |
-| `query_creator_meta` | 1 | 1 次/月 |
-| `query_trending_keywords` | 2 | 2 次/月 |
+| `query_real_desc_text` | 1 | 1 quota |
+| `query_dimension_levels` | 1 | 1 quota |
+| `query_transcript_keywords` | 2 | 2 quota |
+| `query_aggregated_sentiment` | 2 | 2 quota |
+| `query_creator_meta` | 1 | 1 quota |
+| `query_trending_keywords` | 2 | 2 quota |
 
 ## 升级 ProMax
 
-**5 基础 tool 免费**（trial/plus 也可调）。**6 高级 tool + 1000 次/月**仅 ProMax（¥45/月，限时折扣以主仓首页公告为准）。
+**5 基础 tool 免费**（trial/plus 也可调）。**6 高级 tool + 1000 quota / 30 天**仅 ProMax（¥45/月，限时折扣以主仓首页公告为准）。
 
 **升级路径**：登录 [mrmodel.cesario.top](https://mrmodel.cesario.top) → 头像 → 会员中心 → 选 ProMax → 支付 → 等 monitor.sh 异步同步（1-5 分钟）→ 创 MCP token。详见 [主仓会员页](https://mrmodel.cesario.top)。
 
-**1 token 跨设备通用**（iPhone / Mac / Linux 同一 token 都享 1000 次/月，1 用户 1 API key）。
+**1 token 跨设备通用**（iPhone / Mac / Linux 同一 token 都享 1000 quota / 30 天，1 用户 1 API key）。
 
 ## 合规边界
 
