@@ -30,8 +30,8 @@ version: 1.1.0
 - ❌ 主仓管理后台操作 —— 走主仓 admin 后台
 
 ### 核心约束
-- **不动 A1**（A1 封锁铁律）— 本 skill 是用户本地工具，**不入任何 git 仓**
-- **不动主仓**（B 档不动主仓铁律）— 只读 `mcp_tokens` 鉴权 + 调 11 tool
+- **不动 A1**（本 skill 仅本地工具）— 不入任何 git 仓
+- **不动主仓**（主仓 mcp_tokens 鉴权）— 只读 + 调 11 tool
 - **不入 vault**（vault 是写书素材库，技能工具集职责分离）
 
 ---
@@ -119,7 +119,7 @@ curl -X POST https://mcp.cesario.top/mcp \
 | `search_video_transcripts` | `keyword` | `limit` (1-20) | limit=5 | 1/次 | **dict**（含 transcript 30 字 snippet 列表） |
 | `query_comments` | `aweme_id` | `limit` | limit=20 | 1/次 | **dict 聚合统计**（total_comments/avg_digg/max_digg/top_keywords，不是评论 list） |
 
-#### 6 高级 tool（v1.1.0 新增，8-26 主仓 M5 后上线）
+#### 6 高级 tool（v1.1.0 新增，新增 6 高级 tool）
 
 | Tool | 必填 | 关键可选 | 默认值 | 配额成本 | 返回类型 |
 |------|------|----------|--------|----------|----------|
@@ -202,7 +202,7 @@ LLM 看到 `_hint.reason == "no_match"` → 提示用户按 suggestion 调整查
 - 用户说"详细 / 完整 / 全面 / 深度 / 系统 / 多维度" → **FULL 模式**
 - 用户说"简要 / 简略 / 快速 / 简答 / 一句话" → **灵活模式**
 - 用户没说但 token 预算紧（聊天/移动端/embedding 长上下文）→ **灵活模式优先**
-- 默认未指定 → 走 **灵活模式**（KISS，少烧 token，主人原则 v1.1.0 显式降级）
+- 默认未指定 → 走 **灵活模式**（KISS，少烧 token，v1.1.0 默认降级）
 
 ### 4.1 system prompt 拼装（4 件套，灵活/FULL 模式都共用）
 
@@ -337,7 +337,7 @@ LLM 输出时若命中，**该词单独标红或加粗**（前端渲染层判断
 参考主仓 `config/system_prompt.yaml v1.0.4`：
 - **隐私红线 P0**：不透露 GLM/Claude 等模型名（用"技术实现细节不便透露"）
 - **禁提数据源品牌**：涨乐/华泰/腾讯/东方财富/同花顺/任何 skill/API 统一用"本平台数据"
-- **"凡指代博主都改博主"**（博主表达方式铁律）
+- **"凡指代博主都改博主"**（博主表达方式约定）
 - **加粗 / 表格 / 固定结尾声明**：必须落实
 
 ---
@@ -552,15 +552,15 @@ MCP 11 tool 不提供实时行情数据。
   "version": "1.1.0",
   "min_mcp_server_version": "326",
   "skill_md_sha256": "<sha256-of-this-file>",
-  "skill_md_url": "https://cdn.jsdelivr.net/gh/Cesario121125/mr-model-skill@main/SKILL.md",
-  "manifest_url": "https://cdn.jsdelivr.net/gh/Cesario121125/mr-model-skill@main/manifest.json",
+  "skill_md_url": "https://cdn.jsdelivr.net/gh/Cesario121125/M-Model@main/SKILL.md",
+  "manifest_url": "https://cdn.jsdelivr.net/gh/Cesario121125/M-Model@main/manifest.json",
   "updated_at": "2026-08-27T...Z",
   "changelog": "v1.1.0: 5 痛点治本 — 11 tool 决策树 + 灵活模式 + 高级 tool 范本 + ProMax 升级步骤 + jsdelivr 主 URL"
 }
 ```
 
 **URL 优先级（v1.1.0 重要更新）**：
-- ✅ **首选 jsdelivr CDN**（`cdn.jsdelivr.net/gh/Cesario121125/mr-model-skill@main/...`，max-age=604800=7 天，主人 8-26 拍板改主 URL）
+- ✅ **首选 jsdelivr CDN**（`cdn.jsdelivr.net/gh/Cesario121125/M-Model@main/...`，max-age=604800=7 天，默认走 jsdelivr）
 - ⚠️ **raw.githubusercontent 备选**（max-age=300=5min 边缘缓存坑，访问频繁会触发 GitHub 限流）
 - 📌 当前 install 脚本默认走 jsdelivr（commit 58ed2aa）
 
@@ -573,7 +573,7 @@ LLM 第一次调 MCP tool 之前：
 3. 否则发 GET 到 `manifest_url`（**不**烧 MCP 配额，走主仓静态资源）
 4. 对比 `skill_md_sha256`：
    - **一致** → 继续，**不**更新 mtime
-   - **不一致** → **提示主人**："发现新版本 v1.x.x，changelog 摘要：...，是否更新？"
+   - **不一致** → **提示用户**："发现新版本 v1.x.x，changelog 摘要：...，是否更新？"
      - 选是 → 下载新 SKILL.md 覆盖本地 + 写新 manifest.json
      - 选否 → 跳过（KISS 尊重用户选择）
 5. 检查 `min_mcp_server_version`：如果本地 MCP 端 < 该版本 → 警告"部分功能可能不可用"
@@ -604,7 +604,7 @@ rm ~/.claude/skills/mr-model/manifest.json
 | `invalid_token` | token_hash 不匹配 / status≠active | 「token 无效或已吊销，请去主仓 mcp-tokens 重新生成」 |
 | `expired` | expires_at < now | 「token 已过期，请去主仓 mcp-tokens 重新生成」 |
 
-### 8.2 403 已鉴权但禁止（v0.1-r1 板斧 ②：trial/plus 锁死 0）
+### 8.2 403 已鉴权但禁止（v0.1-r1 策略 ②：trial/plus 锁死 0）
 
 | 错误码 | 原因 | 兜底话术 |
 |--------|------|----------|
@@ -613,7 +613,7 @@ rm ~/.claude/skills/mr-model/manifest.json
 | `mcp_not_enabled` | 当前账号未开通 MCP（trial/plus 锁死 0） | 「当前账号未开通 MCP 会员，**只 ProMax 享 MCP**（¥45/月），详情见 §9.8」 |
 | `mcp_not_available` | 创 token 时被拒（plus 档 quota=0 锁死） | 「plus 档不享 MCP，请升级到 ProMax（限时 8-31 前 ¥38.25，剩 4 天），见 §9.8」 |
 
-**v0.1-r1 契约要点**（2026-08-27 主人拍板）：
+**v0.1-r1 契约要点**（2026-08-27 业务策略）：
 - trial / plus / pro **不享 MCP**（quota=0 锁死）
 - 新注册 20 次体验（`first_bonus`，promax 时清掉）
 - 只 **ProMax** 享 1000 次/月，admin / sub_admin 无限（-1）
@@ -649,9 +649,9 @@ rm ~/.claude/skills/mr-model/manifest.json
 
 **Q**：`curl https://mcp.cesario.top/healthz` 返非 200？
 **A**：
-1. 主人 A1 封锁铁律生效期间（无主命不动 A1）— 等主人发话
+1. 服务维护期间（无业务方指示不动 A1）— 等服务恢复
 2. CF 代理问题：检查 `https://mcp.cesario.top` 是否能打开
-3. 本地网络问题：检查 Mac 是否在 Tailscale / 热点
+3. 本地网络问题：检查 本机网络 / 热点
 
 ### 9.3 配额打爆
 
@@ -666,7 +666,7 @@ rm ~/.claude/skills/mr-model/manifest.json
 **Q**：希望拿到 PE/估值但没装 a-stock-data？
 **A**：
 ```bash
-# 从 GitHub 装（私仓，需要主人授权访问）
+# 从 GitHub 装（私仓，需要授权访问）
 git clone https://github.com/simonlin1212/a-stock-data ~/.claude/skills/a-stock-data
 ```
 装完后下次调用自动扫描识别。
@@ -685,7 +685,7 @@ git clone https://github.com/simonlin1212/a-stock-data ~/.claude/skills/a-stock-
 **A**：
 - LLM 必须在输出前自检（见 §4.6）
 - 如出现：手动改写为"风控需关注..." / "看多逻辑在 X 条件下成立"等通用方法论话术
-- 报告误判案例给老王，下次版本更新 self-check prompt
+- 报告误判案例给开发者，下次版本更新 self-check prompt
 
 ### 9.7 跨设备同步
 
@@ -715,12 +715,12 @@ cp ~/.claude/skills/mr-model/manifest.json ~/.claude/skills/mr-model/
 5. **配 mcp_token**：去 https://mrmodel.cesario.top/mcp-tokens 创 token，写入 `~/.config/mrmodel/token`（详见 §2.1）
 
 **为啥 trial/plus 不享 MCP**？
-- 主人 2026-08-27 拍板 v0.1-r1 4 板斧契约：trial/plus/pro 锁死 quota=0，只 ProMax 享 1000
+- 2026-08-27 业务策略 v0.1-r1 4 项业务策略：trial/plus/pro 锁死 quota=0，只 ProMax 享 1000
 - 目的：把 MCP 这条产品线做出差异化（ProMax 是 A 股分析重度用户档）
 - 5 基础 tool 仍免费（视频/博主/评论 5 tool 走主仓 Web 端，无 MCP 也能查）
 - **6 高级 tool + 大配额 + 多用户共享 + 跨设备同步** = ProMax 独享价值
 
-**升级后立即可调**：1 token 跨设备不区分（iPhone/Mac/Linux 同一 token 都 200，v0.1-r1 板斧 ①）
+**升级后立即可调**：1 token 跨设备不区分（iPhone/Mac/Linux 同一 token 都 200，v0.1-r1 策略 ①）
 
 ### 9.9 11 tool / 6 高级 tool 在哪看
 
@@ -913,7 +913,7 @@ cp ~/.claude/skills/mr-model/manifest.json ~/.claude/skills/mr-model/
   - **痛点 ①**：5 tool → 11 tool 决策树全表（新增 6 高级 tool：query_real_desc_text / query_dimension_levels / query_transcript_keywords / query_aggregated_sentiment / query_creator_meta / query_trending_keywords），frontmatter 同步更新
   - **痛点 ②**：新增"灵活模式"（v1.1.0 默认）+ "FULL 模式"双模式选择，§4.0 决策口诀，短问答/快查不再强制 11 字段块（省 token）
   - **痛点 ③**：§6.2 新增 6 高级 tool 范本（query_real_desc_text 14 字段 / query_aggregated_sentiment 拐点 / query_dimension_levels 8 维档位 / query_transcript_keywords 5 类分析 / query_creator_meta 博主 meta / query_trending_keywords 平台热词）+ §6.2.7 3 tool 组合范式
-  - **痛点 ④**：§9.8 新增"如何升级到 ProMax" 3 步走 + ¥38.25 限时倒计时（8-27 剩 4 天，8-31 24:00 截止）；§8.2 错误码加 v0.1-r1 4 板斧契约要点
+  - **痛点 ④**：§9.8 新增"如何升级到 ProMax" 3 步走 + ¥38.25 限时倒计时（8-27 剩 4 天，8-31 24:00 截止）；§8.2 错误码加 v0.1-r1 4 项业务策略要点
   - **痛点 ⑤**：§7.1 manifest URL 改 jsdelivr CDN 优先（max-age=604800），备选 raw 5min 边缘缓存坑说明；附录 A 扩 5→11 tool 输出结构
   - 附录 B 加 v1.1.0 变更日志
 
