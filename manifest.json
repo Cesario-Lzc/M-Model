@@ -1,10 +1,10 @@
 {
   "name": "mr-model",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "min_mcp_server_version": "326",
-  "skill_md_sha256": "fd4f13cdad0bad10843d209ac2ac0ebbd86693ee33ad01472e92474a85d59bb2",
-  "skill_md_url": "https://raw.githubusercontent.com/Cesario121125/mr-model-skill/main/SKILL.md",
-  "manifest_url": "https://raw.githubusercontent.com/Cesario121125/mr-model-skill/main/manifest.json",
-  "updated_at": "2026-08-26T10:00:00Z",
-  "changelog": "v1.0.0 初始版本: 5 tool 决策树 + 辩证法 FULL 模式(3段式+<<<DIA>>> 11 字段) + 合规硬闸 OP_RE + 行情 skill 整合(a-stock-data) + manifest 提示式自更新 + 错误码全档映射"
+  "skill_md_sha256": "0fa8d0b9d9bc4c3e2fb3d2d6443b03b6c4fcf07cb9b1d72640ec3ea7370296f5",
+  "skill_md_url": "https://cdn.jsdelivr.net/gh/Cesario121125/mr-model-skill@main/SKILL.md",
+  "manifest_url": "https://cdn.jsdelivr.net/gh/Cesario121125/mr-model-skill@main/manifest.json",
+  "updated_at": "2026-08-27T05:52:00Z",
+  "changelog": "v1.1.0 5 痛点治本: 5→11 tool 决策树全表(新增 6 高级 tool: query_real_desc_text/query_dimension_levels/query_transcript_keywords/query_aggregated_sentiment/query_creator_meta/query_trending_keywords) + 灵活模式/FULL 模式双模式选择(短问答省 token) + 6 高级 tool 范本 + 3 tool 组合范式(成本 4 次比 N 次联调省) + §9.8 ProMax 升级 3 步走 + ¥38.25 限时倒计时(8-31 24:00 截止 8-27 剩 4 天) + §8.2 加 v0.1-r1 4 板斧契约要点 + §7.1 manifest URL 改 jsdelivr CDN 优先(max-age=604800) + 附录 A 扩 5→11 tool 输出结构 + 附录 B 加 v1.1.0 变更日志"
 }
