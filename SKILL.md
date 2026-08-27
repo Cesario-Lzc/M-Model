@@ -111,24 +111,28 @@ curl -X POST https://mcp.cesario.top/mcp \
 
 #### 5 基础 tool
 
-| Tool | 必填 | 关键可选 | 默认值 | 配额成本 | 返回类型 |
-|------|------|----------|--------|----------|----------|
-| `query_video_list` | — | `page`, `page_size` | page=1, page_size=20 | 1/次 | **dict**（单条 video 全字段） |
-| `search_videos` | `query` | `page`, `page_size` | page=1, page_size=10 | 1/次 | **dict**（page_size=1 时单条，>1 时 list 包 dict） |
-| `query_blogger_opinions` | `keyword` (≥2字) | `date_from`, `date_to`, `limit` (1-20) | limit=10 | 1/次 | **dict**（0 命中时 `_hint.reason=no_match`） |
-| `search_video_transcripts` | `keyword` | `limit` (1-20) | limit=5 | 1/次 | **dict**（含 transcript 30 字 snippet 列表） |
-| `query_comments` | `aweme_id` | `limit` | limit=20 | 1/次 | **dict 聚合统计**（total_comments/avg_digg/max_digg/top_keywords，不是评论 list） |
+> **配额公式**：`cost = ⌈base + 行数 × per⌉ 次/月`（向上取整，防拖库；非 list 返 base 单次）
 
-#### 6 高级 tool（v1.1.0 新增，新增 6 高级 tool）
+| Tool | 必填 | 关键可选 | 默认值 | 配额成本 (次/月) | 返回类型 |
+|------|------|----------|--------|------------------|----------|
+| `query_video_list` | — | `page`, `page_size` (≤20) | page=1, page_size=20 | base=1, per=0.1×N（page_size=20 → 3） | **list[dict]**（单条 video 全字段） |
+| `search_videos` | `query` | `page`, `page_size` (≤20) | page=1, page_size=10 | base=1, per=0.1×N（page_size=10 → 2） | **list[dict]**（0 命中时返 `_hint` dict） |
+| `query_blogger_opinions` | `keyword` (≥2字) | `date_from`, `date_to`, `limit` (1-20) | limit=10 | base=2, per=0.1×N（limit=10 → 3） | **list[dict]**（0 命中时 `_hint.reason=no_match`） |
+| `search_video_transcripts` | `keyword` | `limit` (1-20) | limit=5 | base=2, per=0.05×N（limit=5 → 3） | **list[dict]**（含 transcript 30 字 snippet） |
+| `query_comments` | `aweme_id` | `limit` | limit=20 | base=1, per=0（dict 聚合，per_row 不计） | **dict 聚合**（total/avg_digg/max_digg/top_keywords） |
 
-| Tool | 必填 | 关键可选 | 默认值 | 配额成本 | 返回类型 |
-|------|------|----------|--------|----------|----------|
-| `query_real_desc_text` | `aweme_id` (18-20位) | — | — | 1/次 | **dict**（14 字段全量：VIDEO_LIST_ALLOWLIST + dialectics_tags + framework_dimensions + analysis_framework） |
-| `query_dimension_levels` | `aweme_id` | — | — | 1/次 | **dict**（8 维每维 level 0/1/2 + label 翻译 + 数据源推荐 + 分析步骤） |
-| `query_transcript_keywords` | `aweme_id` | — | — | 2/次 | **dict**（5 类分析：词频 Top50 + NER 实体 + 词性分布 + 关键句 Top5 + 摘要 prompt） |
-| `query_aggregated_sentiment` | `keyword` (≥2字) | `date_from`, `date_to`, `granularity` (weekly\|monthly) | granularity=weekly | 2/次 | **dict**（bull/bear/neutral 计数 + 多空比 + 拐点 + TOP 3 引用） |
-| `query_creator_meta` | `sec_uid` (可选) | — | 当前唯一博主"模型先生" | 1/次 | **dict**（总视频数/近 30/7 天更新/总点赞/活跃度评分） |
-| `query_trending_keywords` | — | `days` (1-30), `top_n` (10-100), `sort_by` (videos\|digg\|comment) | days=7, top_n=50, sort_by=videos | 2/次 | **dict**（窗口内热词 + 新词 + 上升词） |
+#### 6 高级 tool（v1.1.0 新增）
+
+> **配额公式**：`cost = base 次/月`（高级 tool 全是 dict 返回，不走 per_row，base 已含计算成本）
+
+| Tool | 必填 | 关键可选 | 默认值 | 配额成本 (次/月) | 返回类型 |
+|------|------|----------|--------|------------------|----------|
+| `query_real_desc_text` | `aweme_id` (18-20位) | — | — | 1 | **dict**（14 字段：VIDEO_LIST_ALLOWLIST + dialectics_tags + framework_dimensions + analysis_framework） |
+| `query_dimension_levels` | `aweme_id` | — | — | 1 | **dict**（8 维每维 level 0/1/2 + label 翻译 + 数据源 + 分析步骤） |
+| `query_transcript_keywords` | `aweme_id` | — | — | 2 | **dict**（5 类：词频 Top50 + NER + 词性 + 关键句 Top5 + 摘要 prompt） |
+| `query_aggregated_sentiment` | `keyword` (≥2字) | `date_from`, `date_to`, `granularity` (weekly\|monthly) | granularity=weekly | 2 | **dict**（bull/bear/neutral 计数 + 多空比 + 拐点 + TOP 3 引用） |
+| `query_creator_meta` | `sec_uid` (可选) | — | 当前唯一博主"模型先生" | 1 | **dict**（stats + activity_score） |
+| `query_trending_keywords` | — | `days` (1-30), `top_n` (10-100), `sort_by` (videos\|digg\|comment) | days=7, top_n=50, sort_by=videos | 2 | **dict**（窗口热词 + 新词 + 上升词） |
 
 **关键差异（实测 2026-08-27）**：
 - ❌ 不是「list 包 dict」形态
@@ -139,11 +143,13 @@ curl -X POST https://mcp.cesario.top/mcp \
 
 ### 3.3 配额保护策略（KISS：宁可少调不烧配额）
 
-1. **默认 page_size=20**（query_video_list / search_videos），单次 cost=1；超 20 提示用户"是否需要翻第 2 页"（page=2 需用户显式确认）
-2. **query_blogger_opinions limit=10**（默认足够，覆盖博主典型 7-30 天观点）
-3. **search_video_transcripts limit=5**（snippet 30 字 × 5 = 150 字，token 经济）
-4. **query_comments 单次 1 个 aweme_id**（聚合统计，1 视频 = cost=1）
-5. **高级 tool 配额是基础 tool 的 2 倍**（query_transcript_keywords / query_aggregated_sentiment / query_trending_keywords cost=2/次，含 jieba/NER/聚合计算），**少调省配额**
+> 单位：**次/月**（配额按月计，ProMax 享 1000 次/月，trial/plus/pro 锁死 0）
+
+1. **默认 page_size=20**（query_video_list 单次 cost=3），超 20 提示用户"是否需要翻第 2 页"（page=2 需用户显式确认）
+2. **search_videos page_size=10**（cost=2）+ **query_blogger_opinions limit=10**（cost=3，默认足够覆盖博主典型 7-30 天观点）
+3. **search_video_transcripts limit=5**（cost=3，snippet 30 字 × 5 = 150 字，token 经济）
+4. **query_comments 单次 1 个 aweme_id**（聚合 dict 统计，cost=1）
+5. **高级 tool base 1-2 次**（query_transcript_keywords / query_aggregated_sentiment / query_trending_keywords cost=2，含 jieba/NER/聚合计算；query_real_desc_text / query_dimension_levels / query_creator_meta cost=1）
 6. **不级联调用**：拿不到结果就告诉用户，不无限重试
 
 ### 3.4 决策树禁忌
@@ -703,24 +709,20 @@ cp ~/.claude/skills/mr-model/manifest.json ~/.claude/skills/mr-model/
 
 **Q**：报 `mcp_not_enabled` / `mcp_not_available` 怎么升级到 ProMax？
 
-**A**（3 步走）：
+**A**：
 
-1. **登录主仓**：https://mrmodel.cesario.top（用注册时的用户名密码）
-2. **进入会员页**：右上角头像 → 会员中心 → 选 ProMax 档
-3. **支付开通**：
-   - **原价**：¥45/月
-   - **限时 8-31 24:00 前**：¥38.25（85 折，主仓 v0.1-r1 促销）
-   - **倒计时**：8-27 还剩 4 天，8-28 剩 3 天，8-29 剩 2 天，8-30 剩 1 天，8-31 当天
-4. **生效后**：等主仓 monitor.sh 异步同步（约 1-5 分钟），重新创 MCP token 即可享 1000 次/月
-5. **配 mcp_token**：去 https://mrmodel.cesario.top/mcp-tokens 创 token，写入 `~/.config/mrmodel/token`（详见 §2.1）
+1. 登录 https://mrmodel.cesario.top → 头像 → 会员中心 → 选 ProMax
+2. 支付开通：原价 ¥45/月，限时折扣以主仓首页公告为准
+3. 创 MCP token：https://mrmodel.cesario.top/mcp-tokens → 写入 `~/.config/mrmodel/token`（详见 §2.1）
 
 **为啥 trial/plus 不享 MCP**？
-- 2026-08-27 业务策略 v0.1-r1 4 项业务策略：trial/plus/pro 锁死 quota=0，只 ProMax 享 1000
+
+- 业务策略：trial/plus/pro 锁死 quota=0，只 ProMax 享 1000 次/月（业务策略 4 项契约要点，详主仓 Web 公告）
 - 目的：把 MCP 这条产品线做出差异化（ProMax 是 A 股分析重度用户档）
 - 5 基础 tool 仍免费（视频/博主/评论 5 tool 走主仓 Web 端，无 MCP 也能查）
 - **6 高级 tool + 大配额 + 多用户共享 + 跨设备同步** = ProMax 独享价值
 
-**升级后立即可调**：1 token 跨设备不区分（iPhone/Mac/Linux 同一 token 都 200，v0.1-r1 策略 ①）
+**升级后立即可调**：1 token 跨设备不区分（iPhone/Mac/Linux 同一 token 都享 1000 次/月，1 用户 1 API key 策略）
 
 ### 9.9 11 tool / 6 高级 tool 在哪看
 

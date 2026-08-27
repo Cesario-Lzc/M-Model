@@ -4,114 +4,103 @@
 [![MCP Server](https://img.shields.io/badge/MCP-11_tools-green.svg)](https://mcp.cesario.top)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey.svg)](#license)
 
-> 一行命令安装,11 个 MCP 工具,5 基础 + 6 高级,A 股财经视频全维度分析(博主观点/视频检索/转录/评论热词/多空情绪/8 维框架/平台热词)。
+> 11 个 MCP 工具，5 基础 + 6 高级，A 股财经视频全维度分析（博主观点 / 视频检索 / 转录 / 评论热词 / 多空情绪 / 8 维框架 / 平台热词）。
 
-## 快速开始 (一行命令安装)
+## 快速开始
 
 ```bash
 curl -sL https://cdn.jsdelivr.net/gh/Cesario121125/M-Model@main/scripts/install-mrmodel-skill.sh | bash
 ```
 
-安装器会:
-1. 写入 `~/.claude/skills/mr-model/SKILL.md` + `manifest.json`
-2. 提示输入 MCP token(无则引导去 https://mrmodel.cesario.top/mcp-tokens 申请)
-3. 探活验证(0 配额消耗)
+成品位置：装机完成后 `~/.claude/skills/mr-model/SKILL.md` + `manifest.json` 已就位，启动 Claude 时按 SKILL.md §1 触发词自动激活。
 
-**前置**:需要先注册 mrmodel 账号并在 https://mrmodel.cesario.top/mcp-tokens 创建 token。
+**前置**：注册 mrmodel 账号（[mrmodel.cesario.top](https://mrmodel.cesario.top)）→ 创建 MCP token（[mcp-tokens](https://mrmodel.cesario.top/mcp-tokens)）→ 写入 `~/.config/mrmodel/token`。
 
-## 它是什么
+## 它能做什么
 
-本仓库提供 **MCP 调用框架** + **输出规范化层** + **自更新外壳**,所有分析逻辑由 MCP 服务端 (`_DIALECTICS_META_PROMPT` v316 第四层) 注入,客户端 LLM 按 `<<<DIA>>>` 11 字段契约产出分析。
+| 能力 | 工具 | 输入 | 输出示例 |
+|------|------|------|----------|
+| 视频列表 | `query_video_list` | `page=1, page_size=20` | 20 条 video 元信息（按时间倒序） |
+| 关键词搜视频 | `search_videos` | `query="中际旭创"` | 10 条命中视频 desc |
+| 博主观点时间线 | `query_blogger_opinions` | `keyword="贵州茅台", limit=10` | 10 条视频的 8 维框架 + dialectics_tags |
+| 转录片段搜 | `search_video_transcripts` | `keyword="光模块", limit=5` | 5 段 30 字 snippet（含前后文） |
+| 评论聚合 | `query_comments` | `aweme_id=7412345678` | `{total, avg_digg, top_keywords: [...]}` |
+| 单视频全字段 | `query_real_desc_text` | `aweme_id=7412345678` | 14 字段全量 + `analysis_framework` |
+| 8 维档位 | `query_dimension_levels` | `aweme_id=7412345678` | 8 维 × {level 0/1/2 + label} |
+| 转录 5 类分析 | `query_transcript_keywords` | `aweme_id=7412345678` | 词频 Top50 + NER + 词性 + 关键句 + 摘要 prompt |
+| 多空情绪聚合 | `query_aggregated_sentiment` | `keyword="贵州茅台", granularity=weekly` | `{bull:8, bear:3, ratio:2.67, 拐点: [W23]}` |
+| 博主 meta | `query_creator_meta` | `sec_uid` 可选 | `{total_videos: 850, activity_score: 0.92}` |
+| 平台热词 | `query_trending_keywords` | `days=7, top_n=50` | 50 词 × {top/new/rising} |
 
-**它不是**:
-- ❌ 投资框架 / 博主方法论 / 新分析体系
-- ❌ 实时行情工具(联动 `a-stock-data` skill 获取 PE/K线/资金面)
-- ❌ 个股直接买卖建议(合规硬闸硬挡)
+**调用事例**（3 工具组合范式，成本 4 次 vs N 次联调）：
 
-## 仓结构
-
+```python
+# 用户问"贵州茅台最近 30 天怎么说"
+# 1) 时间线聚合（cost=3）
+opinions = call("query_blogger_opinions", keyword="贵州茅台", date_from="2026-07-28", limit=20)
+# 2) 多空情绪 + 拐点（cost=2）
+sentiment = call("query_aggregated_sentiment", keyword="贵州茅台", granularity="weekly")
+# 3) 平台热词看大市风向（cost=2）
+trending = call("query_trending_keywords", days=7, top_n=20)
+# → 客户端 LLM 拼 3 段式 + 11 字段 DIA 块（详 SKILL.md §4.2）
 ```
-M-Model/
-├── SKILL.md                          # skill 完整文档 (42KB, 11 tool 决策树 + 双模式模板)
-├── manifest.json                     # 自更新元信息 (sha256 + URL + version)
-├── scripts/
-│   └── install-mrmodel-skill.sh      # 一行命令装机脚本 (内嵌 base64 SKILL.md)
-└── README.md                         # 本文件
-```
 
-## 11 个 MCP 工具速查
+## 配额成本
 
-### 5 基础工具 (成本 1/次)
+> **公式**：`cost = ⌈base + 行数 × per⌉ 次/月`（向上取整，防拖库；dict 返回走 base 单次）
+> **单位**：**次/月**（配额按月计，ProMax 享 1000 次/月，trial/plus/pro 锁死 0）
 
-| 工具 | 用途 | 必填参数 |
+### 5 基础 tool
+
+| Tool | base | per×N | 默认值成本 |
+|------|------|-------|-----------|
+| `query_video_list` | 1 | 0.1×N | page_size=20 → **3 次/月** |
+| `search_videos` | 1 | 0.1×N | page_size=10 → **2 次/月** |
+| `query_blogger_opinions` | 2 | 0.1×N | limit=10 → **3 次/月** |
+| `search_video_transcripts` | 2 | 0.05×N | limit=5 → **3 次/月** |
+| `query_comments` | 1 | 0（dict 聚合） | 1 aweme_id → **1 次/月** |
+
+### 6 高级 tool（per_row=0，dict 返回走 base）
+
+| Tool | base | 单次成本 |
 |------|------|----------|
-| `query_video_list` | 视频列表(按时间倒序) | — |
-| `search_videos` | 关键词搜索视频 | `query` |
-| `query_blogger_opinions` | 博主对某主题观点时间线 | `keyword` (≥2 字) |
-| `search_video_transcripts` | 转录片段关键词搜索 | `keyword` |
-| `query_comments` | 视频评论聚合统计 | `aweme_id` |
-
-### 6 高级工具
-
-| 工具 | 用途 | 必填参数 | 成本 |
-|------|------|----------|------|
-| `query_real_desc_text` | 单视频 14 字段完整元信息 | `aweme_id` | 1/次 |
-| `query_dimension_levels` | 8 维框架档位 (level 0/1/2) | `aweme_id` | 1/次 |
-| `query_transcript_keywords` | 转录 5 类分析 (词频/NER/词性/关键句/摘要 prompt) | `aweme_id` | 2/次 |
-| `query_aggregated_sentiment` | 多空情绪聚合 + 拐点 | `keyword` | 2/次 |
-| `query_creator_meta` | 博主 meta (活跃度/影响力) | `sec_uid` (可选) | 1/次 |
-| `query_trending_keywords` | 平台热词 (top/new/rising) | — | 2/次 |
-
-详细决策树见 [SKILL.md §3](SKILL.md#3-11-tool-调用决策树)。
-
-## 两种输出模式
-
-### 灵活模式 (默认,~300-500 字)
-
-适合:快查 / 短问答 / "简要说说" / 闲聊
-
-3 段式结构:
-1. 正反论据对照表
-2. 转化条件清单
-3. 分时段判断 (短期/中期/长期)
-
-### 完整模式 (~800-1500 字)
-
-适合:深度分析 / 持仓决策辅助 / 学术性研究 / 用户明确说"详细分析"
-
-3 段式 + `<<<DIA>>>` 11 字段块 (主要矛盾/主要方面/看多/看空/多空比/量变质变/现象本质/必然偶然/博主视角/数据视角/交叉关系)
-
-**判别口诀**:用户说"详细/完整/全面/深度/系统" → 完整模式;用户说"简要/简略/快速/简答/一句话" → 灵活模式;默认 → 灵活模式 (省 token)。
+| `query_real_desc_text` | 1 | 1 次/月 |
+| `query_dimension_levels` | 1 | 1 次/月 |
+| `query_transcript_keywords` | 2 | 2 次/月 |
+| `query_aggregated_sentiment` | 2 | 2 次/月 |
+| `query_creator_meta` | 1 | 1 次/月 |
+| `query_trending_keywords` | 2 | 2 次/月 |
 
 ## 升级 ProMax
 
-5 基础工具免费;6 高级工具 + 大配额仅 ProMax 会员可用(¥45/月,限时折扣见主仓)。升级步骤:
+**5 基础 tool 免费**（trial/plus 也可调）。**6 高级 tool + 1000 次/月**仅 ProMax（¥45/月，限时折扣以主仓首页公告为准）。
 
-1. 登录 https://mrmodel.cesario.top
-2. 头像 → 会员中心 → 选 ProMax
-3. 支付开通 → 等 monitor.sh 异步同步(1-5 分钟)
-4. 去 https://mrmodel.cesario.top/mcp-tokens 创建 MCP token
-5. 写入 `~/.config/mrmodel/token`(权限 600)
+**升级路径**：登录 [mrmodel.cesario.top](https://mrmodel.cesario.top) → 头像 → 会员中心 → 选 ProMax → 支付 → 等 monitor.sh 异步同步（1-5 分钟）→ 创 MCP token。详见 [主仓会员页](https://mrmodel.cesario.top)。
 
-ProMax 享 1000 次/月,1 token 跨设备通用(iPhone/Mac/Linux 同一 token)。
+**1 token 跨设备通用**（iPhone / Mac / Linux 同一 token 都享 1000 次/月，1 用户 1 API key）。
 
 ## 合规边界
 
-**禁用字眼** (LLM 输出前自检):买入 / 卖出 / 加仓 / 减仓 / 止损 / 止盈 / 建仓 / 补仓 / 低吸 / 追入 / 右侧追 / 介入 / 目标价
+**禁用**：买入 / 卖出 / 加仓 / 减仓 / 止损 / 目标价 / 仓位比例 / 具体点位。
 
-**禁用内容**:具体仓位比例 / 具体点位 / 具体目标价止损价
-
-**允许内容**:通用投资方法论 / 转化条件失效提示 / 数据事实陈述
-
-末尾固定声明:"本内容属通用投资分析方法,不构成任何投资建议;用户自行决策并承担风险。"
+**允许**：通用方法论 / 转化条件失效提示 / 数据事实陈述。详 SKILL.md §4.6 + §10。
 
 ## 链接
 
-- **MCP 服务**: https://mcp.cesario.top (Bearer token 鉴权)
-- **主仓 Web/API**: https://mrmodel.cesario.top
-- **Token 管理**: https://mrmodel.cesario.top/mcp-tokens
-- **完整文档**: [SKILL.md](SKILL.md)
+- **MCP 服务**：[mcp.cesario.top](https://mcp.cesario.top)（Bearer token 鉴权）
+- **主仓 Web / API**：[mrmodel.cesario.top](https://mrmodel.cesario.top)
+- **Token 管理**：[mrmodel.cesario.top/mcp-tokens](https://mrmodel.cesario.top/mcp-tokens)
+- **完整文档**：[SKILL.md](SKILL.md)（42KB，11 tool 决策树 + 双模式模板 + 6 高级 tool 范本 + 合规硬闸）
+
+## 维护规范
+
+后续持续优化 SKILL.md / README / install 模版时：
+
+1. **必带事例**：每个新增 tool / 新增成本规则 / 新增模式，都要在文档里列出**调用事例**（输入参数 + 输出结构 + 成本），禁止纯文字描述让用户脑补。
+2. **成本表联动更新**：改 `TOOL_QUOTA_BASE` / `PER_ROW_WEIGHT` 必同步改 SKILL.md §3.2 + README 配额成本表 + manifest.json changelog（SSOT = `backend/mcp_auth.py`）。
+3. **内部词清零**：commit 前 grep 内部代号 / 内部决策记录 / 内部时间标签 / 旧仓名（如 `mr-model-skill`）等，零容忍（公开仓规则）。
+4. **公开 / 私密默认**：所有 git 仓默认 `--visibility private`，本仓 M-Model 在公开白名单（公开仓白名单护栏，2026-08-21 录入），其余 19 仓 private。
 
 ## License
 
-MIT — 自由使用,需保留版权声明。
+MIT — 自由使用，需保留版权声明。
