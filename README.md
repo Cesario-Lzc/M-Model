@@ -1,10 +1,12 @@
 # M-Model — A 股财经视频 MCP 调用框架
 
-[![Version](https://img.shields.io/badge/version-1.2.0-blue.svg)](https://github.com/Cesario-Lzc/M-Model)
+[![Version](https://img.shields.io/badge/version-1.2.1-blue.svg)](https://github.com/Cesario-Lzc/M-Model)
 [![MCP Server](https://img.shields.io/badge/MCP-11_tools-green.svg)](https://mcp.cesario.top)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey.svg)](#license)
 
 > 11 个 MCP 工具，5 基础 + 6 高级，A 股财经视频全维度分析（博主观点 / 视频检索 / 转录 / 评论热词 / 多空情绪 / 8 维框架 / 平台热词）。
+>
+> **数据源**：目前仅收录财经博主「模型先生」的 A 股视频数据；后续将接入更多博主，以 [主仓最新公告](https://mrmodel.cesario.top) 为准。
 
 ## 快速开始
 
@@ -72,11 +74,13 @@ trending = call("query_trending_keywords", days=7, top_n=20)
 | `query_creator_meta` | 1 | 1 quota |
 | `query_trending_keywords` | 2 | 2 quota |
 
-## 升级 ProMax
+## 免费体验与升级
 
-**配额档位**（与主仓对齐）：**新注册**享 20 quota 体验；**trial / plus / pro 锁死 0 不享 MCP**；**仅 ProMax**（¥45/月，价格以主仓首页公告为准）享 1000 quota / 30 天 + 11 tool 全量。
+**免费体验**：**[注册](https://mrmodel.cesario.top) 即享 20 quota 免费体验额度**（11 tool 全部可用，无需付费）。
 
-**升级路径**：登录 [mrmodel.cesario.top](https://mrmodel.cesario.top) → 头像 → 会员中心 → 选 ProMax → 支付 → 等 monitor.sh 异步同步（1-5 分钟）→ 创 MCP token。详见 [主仓会员页](https://mrmodel.cesario.top)。
+**升级 ProMax**：享 1000 quota / 30 天 + 11 tool 全量，价格以[主仓会员页](https://mrmodel.cesario.top)公告为准。
+
+**升级路径**：登录 [mrmodel.cesario.top](https://mrmodel.cesario.top) → 头像 → 会员中心 → 选 ProMax → 支付 → 等 monitor.sh 异步同步（1-5 分钟）→ 创 MCP token。
 
 **1 token 跨设备通用**（iPhone / Mac / Linux 同一 token 都享 1000 quota / 30 天，1 用户 1 API key）。
 

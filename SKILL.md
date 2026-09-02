@@ -2,7 +2,7 @@
 name: mr-model
 description: 「模型先生」+ 任何问题（博主观点/视频检索/评论热词/最近 30 天对个股怎么看）→ 触发本 skill。内部按 11 tool 决策树调用 https://mcp.cesario.top（5 基础 tool + 6 高级 tool：query_video_list / search_videos / query_blogger_opinions / search_video_transcripts / query_comments / query_real_desc_text / query_dimension_levels / query_transcript_keywords / query_aggregated_sentiment / query_creator_meta / query_trending_keywords），用 mcp_tokens Bearer 鉴权。输出两种模式：① 灵活模式（短问答/快查只用 3 段式）② FULL 模式（深度分析输出 `<<<DIA>>>` 11 字段块：主要矛盾/主要方面/看多/看空/多空比/量变质变/现象本质/必然偶然/博主视角/数据视角/交叉关系）+ 合规硬闸（禁个股买卖方向/仓位/价位）。自动联动 ~/.claude/skills/ 下已装行情数据 skill（a-stock-data 等）。需先设置 MR_MCP_TOKEN 环境变量或 ~/.config/mrmodel/token 文件。懒校验、不烧配额、manifest 提示式自更新（jsdelivr CDN 优先 max-age=604800 减少 5min 边缘缓存坑）。
 origin: custom
-version: 1.2.0
+version: 1.2.1
 ---
 
 # mrmodel-skill — mr-model MCP 调用框架
@@ -10,6 +10,7 @@ version: 1.2.0
 > **本 skill 不是投资框架，不是博主方法论，不是新分析体系。**
 > 它**只是**一个 MCP 调用框架 + 输出规范化层 + 自更新外壳。
 > 所有分析逻辑由 MCP 端 `_DIALECTICS_META_PROMPT` (v316 第四层) 注入 + 客户端 LLM 按 `<<<DIA>>>` 契约产出。
+> **数据源**：目前仅收录财经博主「模型先生」的 A 股视频数据；后续将接入更多博主，以主仓最新公告为准。
 
 ## 1. 概述 + 触发词
 
@@ -41,7 +42,7 @@ version: 1.2.0
 ### 配额档位速记（v1.2.0 修正，与主仓 4 板斧对齐）
 - **新注册**（role=user）：享 20 quota 体验（first_bonus）
 - **trial / plus / pro**：**锁死 0，不享 MCP**（不是"5 基础 tool 免费"，旧文案已废）
-- **ProMax**（¥45/月，价格以主仓首页公告为准）：1000 quota / 30 天 + 11 tool 全量
+- **ProMax**（价格以主仓公告为准）：1000 quota / 30 天 + 11 tool 全量
 - **admin / sub_admin**：无限（-1）
 - 触发 403 `mcp_not_enabled` 时按 §8.2 话术引导升级，**禁止承诺"基础 tool 免费"**
 
@@ -644,8 +645,8 @@ rm ~/.claude/skills/mr-model/manifest.json
 |--------|------|----------|
 | `account_disabled` | 账号已禁用 | 「账号已禁用，请联系主仓 admin」 |
 | `account_banned` | 账号被封禁 | 「账号被封禁，请等待封禁结束或联系主仓 admin」 |
-| `mcp_not_enabled` | 当前账号未开通 MCP（trial/plus 锁死 0） | 「当前账号未开通 MCP 会员，**只 ProMax 享 MCP**（¥45/月），详情见 §9.8」 |
-| `mcp_not_available` | 创 token 时被拒（plus 档 quota=0 锁死） | 「plus 档不享 MCP，请升级到 ProMax（¥45/月，价格以主仓首页公告为准），见 §9.8」 |
+| `mcp_not_enabled` | 当前账号未开通 MCP（trial/plus 锁死 0） | 「当前账号未开通 MCP 会员，**只 ProMax 享 MCP**，升级方式见 §9.8」 |
+| `mcp_not_available` | 创 token 时被拒（plus 档 quota=0 锁死） | 「plus 档不享 MCP，请升级到 ProMax（价格以主仓公告为准），见 §9.8」 |
 
 **契约要点**（2026-08-27 定）：
 - trial / plus / pro **不享 MCP**（quota=0 锁死）
@@ -740,7 +741,7 @@ cp ~/.claude/skills/mr-model/manifest.json ~/.claude/skills/mr-model/
 **A**：
 
 1. 登录 https://mrmodel.cesario.top → 头像 → 会员中心 → 选 ProMax
-2. 支付开通：¥45/月，价格以主仓首页公告为准
+2. 支付开通：价格以主仓首页公告为准
 3. 创 MCP token：https://mrmodel.cesario.top/mcp-tokens → 写入 `~/.config/mrmodel/token`（详见 §2.1）
 
 **为啥 trial/plus 不享 MCP**？
@@ -938,6 +939,10 @@ cp ~/.claude/skills/mr-model/manifest.json ~/.claude/skills/mr-model/
 ```
 
 ## 附录 B：变更日志
+
+- **v1.2.1** (2026-09-02) — 文档去价格化
+  - 价格数字全部移除（README + SKILL.md 话术），统一「以主仓公告为准」——避免改价后装机文档过期撒谎
+  - README 增「注册即享 20 quota 免费体验」引导；README/SKILL.md 增数据源说明（当前仅「模型先生」，后续接入更多博主以公告为准）
 
 - **v1.1.0** (2026-08-27) — 5 痛点治本
   - **痛点 ①**：5 tool → 11 tool 决策树全表（新增 6 高级 tool：query_real_desc_text / query_dimension_levels / query_transcript_keywords / query_aggregated_sentiment / query_creator_meta / query_trending_keywords），frontmatter 同步更新

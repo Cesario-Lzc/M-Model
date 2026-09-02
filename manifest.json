@@ -1,12 +1,12 @@
 {
   "name": "mr-model",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "min_mcp_server_version": "326",
-  "skill_md_sha256": "d9ff55ff911dcb07dd2a3bdc5cbb24ad2911eff4fc92297246551c532d656e99",
+  "skill_md_sha256": "4bf32566a401a6711f4c98340e6d4c87a2e3c796fc673fbf4eb8a344b8650c71",
   "skill_md_url": "https://raw.githubusercontent.com/Cesario-Lzc/M-Model/main/SKILL.md",
   "manifest_url": "https://raw.githubusercontent.com/Cesario-Lzc/M-Model/main/manifest.json",
-  "updated_at": "2026-09-02T09:00:00Z",
-  "changelog": "v1.2.0 合规强化: 合规声明常量钉死(AI生成/非持牌/数据时效) + 收益承诺类禁词扩展(稳赚/必涨/无风险/百分百/包赚/保底) + 不个性化禁令 + 配额透明 + 首用引导 + 档位速记对齐主仓4板斧(trial/plus/pro锁0非免费) + manifest URL 死链治本(仓名修正 M-Model)",
+  "updated_at": "2026-09-02T10:30:00Z",
+  "changelog": "v1.2.1 文档去价格化: 价格数字全部移除统一「以主仓公告为准」(防改价后装机文档过期撒谎) + 注册即享 20 quota 免费体验引导 + 数据源说明(当前仅「模型先生」, 后续接入更多博主以公告为准)",
   "capabilities": {
     "network_egress": "mcp.cesario.top (MCP API) + raw.githubusercontent.com / cdn.jsdelivr.net (拉取更新)",
     "files_written": "~/.claude/skills/mr-model/ (或 MRMODEL_SKILL_DIR) + ~/.config/mrmodel/token",
