@@ -89,10 +89,17 @@ else
            && head -c 10 /tmp/mrmodel_skill_md.tmp | grep -q '^---' \
            && curl -fsSL --max-time 15 "$BASE/manifest.json" -o /tmp/mrmodel_manifest.tmp 2>/dev/null \
            && head -c 1 /tmp/mrmodel_manifest.tmp | grep -q '{'; then
-            install -m 644 /tmp/mrmodel_skill_md.tmp "$TARGET_SKILL_DIR/SKILL.md"
-            install -m 644 /tmp/mrmodel_manifest.tmp "$TARGET_SKILL_DIR/manifest.json"
-            CDN_OK=1
-            break
+            # v1.2.0: sha 一致性校验 (防 jsdelivr @main 多文件缓存撕裂 — SKILL.md 已刷新 manifest 未刷会装出坏组合)
+            GOT_SHA=$(shasum -a 256 /tmp/mrmodel_skill_md.tmp 2>/dev/null | awk '{print $1}' || sha256sum /tmp/mrmodel_skill_md.tmp | awk '{print $1}')
+            WANT_SHA=$(grep -o '[a-f0-9]\{64\}' /tmp/mrmodel_manifest.tmp | head -1)
+            if [ -n "$GOT_SHA" ] && [ "$GOT_SHA" = "$WANT_SHA" ]; then
+                install -m 644 /tmp/mrmodel_skill_md.tmp "$TARGET_SKILL_DIR/SKILL.md"
+                install -m 644 /tmp/mrmodel_manifest.tmp "$TARGET_SKILL_DIR/manifest.json"
+                CDN_OK=1
+                break
+            else
+                warn "  $BASE 缓存撕裂 (sha ${GOT_SHA:0:8} != manifest ${WANT_SHA:0:8}), 换下一源/fallback"
+            fi
         fi
     done
     rm -f /tmp/mrmodel_skill_md.tmp /tmp/mrmodel_manifest.tmp
