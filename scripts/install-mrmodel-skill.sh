@@ -3,9 +3,9 @@
 #
 # 用户/agent 跑这一行就完事:
 #   主 (jsdelivr 镜像, 绕 raw.githubusercontent.com 5min 边缘缓存):
-#     curl -sL https://cdn.jsdelivr.net/gh/Cesario121125/M-Model@main/scripts/install-mrmodel-skill.sh | bash
+#     curl -sL https://cdn.jsdelivr.net/gh/Cesario-Lzc/M-Model@main/scripts/install-mrmodel-skill.sh | bash
 #   备 (raw, 偶尔 5min 缓存, 新版推上去可能滞后):
-#     curl -sL https://raw.githubusercontent.com/Cesario121125/M-Model/main/scripts/install-mrmodel-skill.sh | bash
+#     curl -sL https://raw.githubusercontent.com/Cesario-Lzc/M-Model/main/scripts/install-mrmodel-skill.sh | bash
 #
 # 行为:
 #   1. 解码内嵌 base64 → 写入 SKILL.md + manifest.json 到 ~/.claude/skills/mr-model/

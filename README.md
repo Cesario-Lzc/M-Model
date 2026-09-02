@@ -1,6 +1,6 @@
 # M-Model — A 股财经视频 MCP 调用框架
 
-[![Version](https://img.shields.io/badge/version-1.1.1-blue.svg)](https://github.com/Cesario121125/M-Model)
+[![Version](https://img.shields.io/badge/version-1.1.1-blue.svg)](https://github.com/Cesario-Lzc/M-Model)
 [![MCP Server](https://img.shields.io/badge/MCP-11_tools-green.svg)](https://mcp.cesario.top)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey.svg)](#license)
 
@@ -9,7 +9,7 @@
 ## 快速开始
 
 ```bash
-curl -sL https://cdn.jsdelivr.net/gh/Cesario121125/M-Model@main/scripts/install-mrmodel-skill.sh | bash
+curl -sL https://cdn.jsdelivr.net/gh/Cesario-Lzc/M-Model@main/scripts/install-mrmodel-skill.sh | bash
 ```
 
 成品位置：装机完成后 `~/.claude/skills/mr-model/SKILL.md` + `manifest.json` 已就位，启动 Claude 时按 SKILL.md §1 触发词自动激活。

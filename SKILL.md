@@ -559,15 +559,15 @@ MCP 11 tool 不提供实时行情数据。
   "version": "1.1.0",
   "min_mcp_server_version": "326",
   "skill_md_sha256": "<sha256-of-this-file>",
-  "skill_md_url": "https://cdn.jsdelivr.net/gh/Cesario121125/M-Model@main/SKILL.md",
-  "manifest_url": "https://cdn.jsdelivr.net/gh/Cesario121125/M-Model@main/manifest.json",
+  "skill_md_url": "https://cdn.jsdelivr.net/gh/Cesario-Lzc/M-Model@main/SKILL.md",
+  "manifest_url": "https://cdn.jsdelivr.net/gh/Cesario-Lzc/M-Model@main/manifest.json",
   "updated_at": "2026-08-27T...Z",
   "changelog": "v1.1.0: 5 痛点治本 — 11 tool 决策树 + 灵活模式 + 高级 tool 范本 + ProMax 升级步骤 + jsdelivr 主 URL"
 }
 ```
 
 **URL 优先级（v1.1.0 重要更新）**：
-- ✅ **首选 jsdelivr CDN**（`cdn.jsdelivr.net/gh/Cesario121125/M-Model@main/...`，max-age=604800=7 天，默认走 jsdelivr）
+- ✅ **首选 jsdelivr CDN**（`cdn.jsdelivr.net/gh/Cesario-Lzc/M-Model@main/...`，max-age=604800=7 天，默认走 jsdelivr）
 - ⚠️ **raw.githubusercontent 备选**（max-age=300=5min 边缘缓存坑，访问频繁会触发 GitHub 限流）
 - 📌 当前 install 脚本默认走 jsdelivr（commit 58ed2aa）
 
