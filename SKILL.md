@@ -2,7 +2,7 @@
 name: mr-model
 description: 「模型先生」+ 任何问题（博主观点/视频检索/评论热词/最近 30 天对个股怎么看）→ 触发本 skill。内部按 11 tool 决策树调用 https://mcp.cesario.top（5 基础 tool + 6 高级 tool：query_video_list / search_videos / query_blogger_opinions / search_video_transcripts / query_comments / query_real_desc_text / query_dimension_levels / query_transcript_keywords / query_aggregated_sentiment / query_creator_meta / query_trending_keywords），用 mcp_tokens Bearer 鉴权。输出两种模式：① 灵活模式（短问答/快查只用 3 段式）② FULL 模式（深度分析输出 `<<<DIA>>>` 11 字段块：主要矛盾/主要方面/看多/看空/多空比/量变质变/现象本质/必然偶然/博主视角/数据视角/交叉关系）+ 合规硬闸（禁个股买卖方向/仓位/价位）。自动联动 ~/.claude/skills/ 下已装行情数据 skill（a-stock-data 等）。需先设置 MR_MCP_TOKEN 环境变量或 ~/.config/mrmodel/token 文件。懒校验、不烧配额、manifest 提示式自更新（jsdelivr CDN 优先 max-age=604800 减少 5min 边缘缓存坑）。
 origin: custom
-version: 1.1.1
+version: 1.2.0
 ---
 
 # mrmodel-skill — mr-model MCP 调用框架
@@ -33,6 +33,17 @@ version: 1.1.1
 - **不动 A1**（本 skill 仅本地工具）— 不入任何 git 仓
 - **不动主仓**（主仓 mcp_tokens 鉴权）— 只读 + 调 11 tool
 - **不入 vault**（vault 是写书素材库，技能工具集职责分离）
+
+### 首次激活引导（v1.2.0 新增）
+首次触发本 skill 的会话里，在回答末尾附 1 行提示（仅当次会话首次，不重复刷屏）：
+> 还可以问我：① 最近 30 天对 XX（个股）的多空比 ② 最近 7 天平台都在聊什么（热词）③ 某条视频具体讲了什么
+
+### 配额档位速记（v1.2.0 修正，与主仓 4 板斧对齐）
+- **新注册**（role=user）：享 20 quota 体验（first_bonus）
+- **trial / plus / pro**：**锁死 0，不享 MCP**（不是"5 基础 tool 免费"，旧文案已废）
+- **ProMax**（¥45/月，价格以主仓首页公告为准）：1000 quota / 30 天 + 11 tool 全量
+- **admin / sub_admin**：无限（-1）
+- 触发 403 `mcp_not_enabled` 时按 §8.2 话术引导升级，**禁止承诺"基础 tool 免费"**
 
 ---
 
@@ -152,6 +163,7 @@ curl -X POST https://mcp.cesario.top/mcp \
 4. **query_comments 单次 1 个 aweme_id**（聚合 dict 统计，cost=1 quota）
 5. **高级 tool base 1-2 quota**（query_transcript_keywords / query_aggregated_sentiment / query_trending_keywords cost=2 quota，含 jieba/NER/聚合计算；query_real_desc_text / query_dimension_levels / query_creator_meta cost=1 quota）
 6. **不级联调用**：拿不到结果就告诉用户，不无限重试
+7. **配额透明（v1.2.0 新增）**：每次 MCP 调用成功后，输出末尾展示一行「本次消耗 X quota / 剩余 Y quota」（读返回的 `_meta.quota_cost` / `quota_remaining`），让用户对余量心里有数，避免"突然撞 429"的体验落差
 
 ### 3.4 决策树禁忌
 
@@ -228,7 +240,7 @@ LLM 调 MCP 拿到 video 数据后，**把以下 4 块拼进 system prompt**：
 # 4. 输出要求（合规硬闸）
 严格按「正反论据对照→转化条件→分时段判断」结构输出
 禁用具体买入/卖出点位、仓位比例、目标价、止损价
-合规：本分析属通用投资方法论，不构成任何投资建议
+合规：末尾原样追加 §4.6 合规声明常量（逐字粘贴，禁改写/缩写/删除）
 （FULL 模式加 1 行：末尾追加 `<<<DIA>>>` 11 字段块）
 ```
 
@@ -318,26 +330,41 @@ LLM 输出时若命中，**该词单独标红或加粗**（前端渲染层判断
 | 中期 | 1-6 月 | 基本面+行业景气 | 业绩能否支撑估值？有无行业/政策催化？主力资金方向？ |
 | 长期 | 半年+ | 宏观+产业逻辑 | 产业大逻辑成立？竞争格局改善？技术迭代颠覆？ |
 
-### 4.6 合规硬闸（必须落实，LLM 输出前自检）
+### 4.6 合规硬闸（必须落实，LLM 输出前自检，v1.2.0 强化）
 
 ❌ **禁用字眼**（命中 → 改写为通用方法论提示）：
+
+操作指令类：
 - 买入 / 卖出 / 加仓 / 减仓 / 止损 / 止盈
 - 建仓 / 补仓 / 低吸 / 追入 / 右侧追 / 介入 / 目标价
+
+收益承诺类（v1.2.0 新增——荐股诈骗核心特征，监管红线，命中即改写中性表述，零豁免）：
+- 稳赚 / 稳赚不赔 / 必涨 / 必跌 / 无风险 / 零风险 / 百分百 / 百分之百 / 包赚 / 保底 / 抄底逃顶
 
 ❌ **禁用内容**：
 - 具体仓位比例（如"建议 30% 仓位"）
 - 具体点位（如"在 45.20 元买入"）
 - 具体目标价/止损价
+- **个性化建议（v1.2.0 新增）**：禁止基于用户持仓/风险偏好/资金量给建议（如"你适合加仓""你的情况可以买"）——只输出"通用方法论 + 数据事实"，不做个人投顾
 
 ✅ **允许内容**：
 - 通用投资方法论（"风控需关注 X 条件"）
 - 转化条件失效提示（"看多逻辑失效时需重新评估"）
 - 数据/事实陈述（"当前 PE 分位 80%"）
 
-**LLM 输出后自检清单**（失败 → 改写）：
-1. 全文扫描禁用字眼 OP_RE
+**合规声明常量（v1.2.0 钉死）**：
+
+所有输出（灵活模式 + FULL 模式，无一例外）末尾**原样追加**以下常量，**逐字粘贴，禁止改写/缩写/删除**：
+
+```
+⚠️ 声明：本内容由 AI 聚合生成，非持牌证券投资顾问意见，不构成任何投资建议；数据来自第三方，可能存在延迟或偏差，请以官方信息为准；投资有风险，请自行决策并承担风险。
+```
+
+**LLM 输出后自检清单**（任一失败 → 改写重查）：
+1. 全文扫描禁用字眼（操作指令类 + 收益承诺类）
 2. 检查是否含具体数字仓位/点位
-3. 末尾固定加"本内容属通用投资分析方法，不构成任何投资建议；用户自行决策并承担风险"
+3. 检查是否含个性化建议（基于"你的持仓/偏好/资金量"）
+4. 末尾是否原样含合规声明常量（缺 → 补）
 
 ### 4.7 主仓对齐要点（不可破坏）
 
@@ -418,7 +445,7 @@ MCP 11 tool 不提供实时行情数据。
 - 中期（1-6月）：看 800G/1.6T 招标节奏
 - 长期（半年+）：硅光 CPO 产业逻辑兑现进度
 
-本内容属通用投资分析方法，不构成任何投资建议；用户自行决策并承担风险。
+⚠️ 声明：本内容由 AI 聚合生成，非持牌证券投资顾问意见，不构成任何投资建议；数据来自第三方，可能存在延迟或偏差，请以官方信息为准；投资有风险，请自行决策并承担风险。
 ```
 
 ### 6.2 高级 tool 范本（v1.1.0 新增）
@@ -556,13 +583,13 @@ MCP 11 tool 不提供实时行情数据。
 ```json
 {
   "name": "mr-model",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "min_mcp_server_version": "326",
   "skill_md_sha256": "<sha256-of-this-file>",
   "skill_md_url": "https://cdn.jsdelivr.net/gh/Cesario-Lzc/M-Model@main/SKILL.md",
   "manifest_url": "https://cdn.jsdelivr.net/gh/Cesario-Lzc/M-Model@main/manifest.json",
-  "updated_at": "2026-08-27T...Z",
-  "changelog": "v1.1.0: 5 痛点治本 — 11 tool 决策树 + 灵活模式 + 高级 tool 范本 + ProMax 升级步骤 + jsdelivr 主 URL"
+  "updated_at": "2026-09-02T...Z",
+  "changelog": "v1.2.0: 合规强化 — 合规声明常量钉死（AI生成/非持牌/数据时效）+ 收益承诺类禁词扩展 + 不个性化禁令 + 配额透明 + 首用引导 + 档位速记（4 板斧对齐）"
 }
 ```
 
@@ -611,16 +638,16 @@ rm ~/.claude/skills/mr-model/manifest.json
 | `invalid_token` | token_hash 不匹配 / status≠active | 「token 无效或已吊销，请去主仓 mcp-tokens 重新生成」 |
 | `expired` | expires_at < now | 「token 已过期，请去主仓 mcp-tokens 重新生成」 |
 
-### 8.2 403 已鉴权但禁止（v0.1-r1 策略 ②：trial/plus 锁死 0）
+### 8.2 403 已鉴权但禁止（业务策略 ②：trial/plus/pro 锁死 0）
 
 | 错误码 | 原因 | 兜底话术 |
 |--------|------|----------|
 | `account_disabled` | 账号已禁用 | 「账号已禁用，请联系主仓 admin」 |
 | `account_banned` | 账号被封禁 | 「账号被封禁，请等待封禁结束或联系主仓 admin」 |
 | `mcp_not_enabled` | 当前账号未开通 MCP（trial/plus 锁死 0） | 「当前账号未开通 MCP 会员，**只 ProMax 享 MCP**（¥45/月），详情见 §9.8」 |
-| `mcp_not_available` | 创 token 时被拒（plus 档 quota=0 锁死） | 「plus 档不享 MCP，请升级到 ProMax（限时 8-31 前 ¥38.25，剩 4 天），见 §9.8」 |
+| `mcp_not_available` | 创 token 时被拒（plus 档 quota=0 锁死） | 「plus 档不享 MCP，请升级到 ProMax（¥45/月，价格以主仓首页公告为准），见 §9.8」 |
 
-**v0.1-r1 契约要点**（2026-08-27 业务策略）：
+**契约要点**（2026-08-27 定）：
 - trial / plus / pro **不享 MCP**（quota=0 锁死）
 - 新注册 20 quota 体验（`first_bonus`，promax 时清掉）
 - 只 **ProMax** 享 1000 quota / 30 天，admin / sub_admin 无限（-1）
@@ -713,14 +740,14 @@ cp ~/.claude/skills/mr-model/manifest.json ~/.claude/skills/mr-model/
 **A**：
 
 1. 登录 https://mrmodel.cesario.top → 头像 → 会员中心 → 选 ProMax
-2. 支付开通：原价 ¥45/月，限时折扣以主仓首页公告为准
+2. 支付开通：¥45/月，价格以主仓首页公告为准
 3. 创 MCP token：https://mrmodel.cesario.top/mcp-tokens → 写入 `~/.config/mrmodel/token`（详见 §2.1）
 
 **为啥 trial/plus 不享 MCP**？
 
 - 业务策略：trial/plus/pro 锁死 quota=0，只 ProMax 享 1000 quota / 30 天（业务策略 4 项契约要点，详主仓 Web 公告）
 - 目的：把 MCP 这条产品线做出差异化（ProMax 是 A 股分析重度用户档）
-- 5 基础 tool 仍免费（视频/博主/评论 5 tool 走主仓 Web 端，无 MCP 也能查）
+- 5 基础 tool 对应的查询能力在主仓 Web 端免费（网页直接查视频/博主/评论）；但 **MCP 通道不存在"基础 tool 免费"**，配额按档位（trial/plus/pro 锁 0）
 - **6 高级 tool + 大配额 + 多用户共享 + 跨设备同步** = ProMax 独享价值
 
 **升级后立即可调**：1 token 跨设备不区分（iPhone/Mac/Linux 同一 token 都享 1000 quota / 30 天，1 用户 1 API key 策略）
@@ -916,7 +943,7 @@ cp ~/.claude/skills/mr-model/manifest.json ~/.claude/skills/mr-model/
   - **痛点 ①**：5 tool → 11 tool 决策树全表（新增 6 高级 tool：query_real_desc_text / query_dimension_levels / query_transcript_keywords / query_aggregated_sentiment / query_creator_meta / query_trending_keywords），frontmatter 同步更新
   - **痛点 ②**：新增"灵活模式"（v1.1.0 默认）+ "FULL 模式"双模式选择，§4.0 决策口诀，短问答/快查不再强制 11 字段块（省 token）
   - **痛点 ③**：§6.2 新增 6 高级 tool 范本（query_real_desc_text 14 字段 / query_aggregated_sentiment 拐点 / query_dimension_levels 8 维档位 / query_transcript_keywords 5 类分析 / query_creator_meta 博主 meta / query_trending_keywords 平台热词）+ §6.2.7 3 tool 组合范式
-  - **痛点 ④**：§9.8 新增"如何升级到 ProMax" 3 步走 + ¥38.25 限时倒计时（8-27 剩 4 天，8-31 24:00 截止）；§8.2 错误码加 v0.1-r1 4 项业务策略要点
+  - **痛点 ④**：§9.8 新增"如何升级到 ProMax" 3 步走 + ¥38.25 限时倒计时（8-27 剩 4 天，8-31 24:00 截止）；§8.2 错误码加 4 项业务策略要点
   - **痛点 ⑤**：§7.1 manifest URL 改 jsdelivr CDN 优先（max-age=604800），备选 raw 5min 边缘缓存坑说明；附录 A 扩 5→11 tool 输出结构
   - 附录 B 加 v1.1.0 变更日志
 

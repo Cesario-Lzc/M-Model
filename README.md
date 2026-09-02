@@ -1,6 +1,6 @@
 # M-Model — A 股财经视频 MCP 调用框架
 
-[![Version](https://img.shields.io/badge/version-1.1.1-blue.svg)](https://github.com/Cesario-Lzc/M-Model)
+[![Version](https://img.shields.io/badge/version-1.2.0-blue.svg)](https://github.com/Cesario-Lzc/M-Model)
 [![MCP Server](https://img.shields.io/badge/MCP-11_tools-green.svg)](https://mcp.cesario.top)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey.svg)](#license)
 
@@ -74,7 +74,7 @@ trending = call("query_trending_keywords", days=7, top_n=20)
 
 ## 升级 ProMax
 
-**5 基础 tool 免费**（trial/plus 也可调）。**6 高级 tool + 1000 quota / 30 天**仅 ProMax（¥45/月，限时折扣以主仓首页公告为准）。
+**配额档位**（与主仓对齐）：**新注册**享 20 quota 体验；**trial / plus / pro 锁死 0 不享 MCP**；**仅 ProMax**（¥45/月，价格以主仓首页公告为准）享 1000 quota / 30 天 + 11 tool 全量。
 
 **升级路径**：登录 [mrmodel.cesario.top](https://mrmodel.cesario.top) → 头像 → 会员中心 → 选 ProMax → 支付 → 等 monitor.sh 异步同步（1-5 分钟）→ 创 MCP token。详见 [主仓会员页](https://mrmodel.cesario.top)。
 
@@ -82,7 +82,7 @@ trending = call("query_trending_keywords", days=7, top_n=20)
 
 ## 合规边界
 
-**禁用**：买入 / 卖出 / 加仓 / 减仓 / 止损 / 目标价 / 仓位比例 / 具体点位。
+**禁用**：买入 / 卖出 / 加仓 / 减仓 / 止损 / 目标价 / 仓位比例 / 具体点位（操作类）；稳赚 / 必涨 / 无风险 / 百分百 / 包赚 / 保底（收益承诺类，v1.2.0）；基于用户持仓/风险偏好的个性化建议。
 
 **允许**：通用方法论 / 转化条件失效提示 / 数据事实陈述。详 SKILL.md §4.6 + §10。
 
@@ -91,7 +91,7 @@ trending = call("query_trending_keywords", days=7, top_n=20)
 - **MCP 服务**：[mcp.cesario.top](https://mcp.cesario.top)（Bearer token 鉴权）
 - **主仓 Web / API**：[mrmodel.cesario.top](https://mrmodel.cesario.top)
 - **Token 管理**：[mrmodel.cesario.top/mcp-tokens](https://mrmodel.cesario.top/mcp-tokens)
-- **完整文档**：[SKILL.md](SKILL.md)（42KB，11 tool 决策树 + 双模式模板 + 6 高级 tool 范本 + 合规硬闸）
+- **完整文档**：[SKILL.md](SKILL.md)（约 44KB，11 tool 决策树 + 双模式模板 + 6 高级 tool 范本 + 合规硬闸 + 合规声明常量）
 
 ## 维护规范
 
