@@ -39,7 +39,7 @@ version: 1.2.1
 首次触发本 skill 的会话里，在回答末尾附 1 行提示（仅当次会话首次，不重复刷屏）：
 > 还可以问我：① 最近 30 天对 XX（个股）的多空比 ② 最近 7 天平台都在聊什么（热词）③ 某条视频具体讲了什么
 
-### 配额档位速记（v1.2.0 修正，与主仓 4 板斧对齐）
+### 配额档位速记
 - **新注册**（role=user）：享 20 quota 体验（first_bonus）
 - **trial / plus / pro**：**锁死 0，不享 MCP**（不是"5 基础 tool 免费"，旧文案已废）
 - **ProMax**（价格以主仓公告为准）：1000 quota / 30 天 + 11 tool 全量
@@ -52,23 +52,25 @@ version: 1.2.1
 
 ### 2.1 token 读取优先级（3 级 fallback）
 
+> token **注册即有**（1 人 1 个，无需申请/创建），完整明文随时在 [mcp-tokens 页](https://mrmodel.cesario.top/mcp-tokens)查看/复制。
+
 ```bash
 # 优先级 1（推荐）：环境变量
-export MR_MCP_TOKEN="mcp_live_<64hex>"
+export MR_MCP_TOKEN="mcp_live_<48hex>"
 
 # 优先级 2（fallback）：文件，权限 600
 mkdir -p ~/.config/mrmodel
-echo -n "mcp_live_<64hex>" > ~/.config/mrmodel/token
+echo -n "mcp_live_<48hex>" > ~/.config/mrmodel/token
 chmod 600 ~/.config/mrmodel/token
 
 # 优先级 3（都不存在）：报错兜底
-# → 告诉用户去 https://mrmodel.cesario.top/mcp-tokens 生成
+# → 告诉用户 token 注册即有，去 https://mrmodel.cesario.top/mcp-tokens 查看/复制完整 token
 ```
 
 ### 2.2 token 格式校验（启动时轻量预检，0 配额成本）
 
 - 前缀：`mcp_live_`（**9 字符**：`m-c-p-_-l-i-v-e-_`）
-- 后跟：**48 个十六进制字符**（`[0-9a-f]{48}`，192 位熵，`secrets.token_hex(24)` 生成）
+- 后跟：**48 个十六进制字符**（`[0-9a-f]{48}`，sha256 派生生成，服务端只存哈希不存明文）
 - 总长：**57 字符**
 - **格式正确 → 静默通过，第一次实际调用时才连 MCP 鉴权**
 - **格式错误 → 立即报错 "token 格式不合法，应为 mcp_live_<48hex> 共 57 字符"**
@@ -563,17 +565,17 @@ MCP 11 tool 不提供实时行情数据。
 
 **LLM 输出**：
 > 本月 MCP 配额已用尽（X/Y），请等下月窗口重置（1 天 0 时归零）。
-> 如需立即继续，可在主仓升级配额或新增 token。
+> 如需立即继续，可在主仓升级配额（ProMax 享 1000 quota / 30 天）。
 
 ### 6.5 鉴权失败范本
 
 **MCP 返 401**：`invalid_token`
 
 **LLM 输出**：
-> token 无效或已吊销，请检查：
+> token 无效或已重置，请检查：
 > 1. 确认 `MR_MCP_TOKEN` 环境变量或 `~/.config/mrmodel/token` 文件已正确配置
-> 2. 确认 token 格式为 `mcp_live_<64hex>`
-> 3. 重新生成：去 https://mrmodel.cesario.top/mcp-tokens → 撤销旧 token → 创建新 token
+> 2. 确认 token 格式为 `mcp_live_<48hex>`（共 57 字符）
+> 3. 完整 token 注册即有，随时去 https://mrmodel.cesario.top/mcp-tokens 查看/复制；如怀疑泄露，在该页点「重置」后换用新 token
 
 ---
 
@@ -584,13 +586,13 @@ MCP 11 tool 不提供实时行情数据。
 ```json
 {
   "name": "mr-model",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "min_mcp_server_version": "326",
   "skill_md_sha256": "<sha256-of-this-file>",
   "skill_md_url": "https://cdn.jsdelivr.net/gh/Cesario-Lzc/M-Model@main/SKILL.md",
   "manifest_url": "https://cdn.jsdelivr.net/gh/Cesario-Lzc/M-Model@main/manifest.json",
-  "updated_at": "2026-09-02T...Z",
-  "changelog": "v1.2.0: 合规强化 — 合规声明常量钉死（AI生成/非持牌/数据时效）+ 收益承诺类禁词扩展 + 不个性化禁令 + 配额透明 + 首用引导 + 档位速记（4 板斧对齐）"
+  "updated_at": "2026-09-03T...Z",
+  "changelog": "v1.3.0: token 注册即有 — 1 人 1 token 免申请，明文随时在 mcp-tokens 页查看/复制，泄露点「重置」即换新（旧 token 立即失效）"
 }
 ```
 
@@ -635,9 +637,9 @@ rm ~/.claude/skills/mr-model/manifest.json
 
 | 错误码 | 原因 | 兜底话术 |
 |--------|------|----------|
-| `missing_bearer` | 漏了 Authorization 头 | 「请配置 MR_MCP_TOKEN 环境变量或 ~/.config/mrmodel/token 文件」 |
-| `invalid_token` | token_hash 不匹配 / status≠active | 「token 无效或已吊销，请去主仓 mcp-tokens 重新生成」 |
-| `expired` | expires_at < now | 「token 已过期，请去主仓 mcp-tokens 重新生成」 |
+| `missing_bearer` | 漏了 Authorization 头 | 「请配置 MR_MCP_TOKEN 环境变量或 ~/.config/mrmodel/token 文件；token 注册即有，去 https://mrmodel.cesario.top/mcp-tokens 查看/复制」 |
+| `invalid_token` | token_hash 不匹配 / status≠active | 「token 无效或已重置，去 https://mrmodel.cesario.top/mcp-tokens 查看/复制完整 token（注册即有）」 |
+| `expired` | expires_at < now | 「token 已过期，去 https://mrmodel.cesario.top/mcp-tokens 点「重置」后换用新 token」 |
 
 ### 8.2 403 已鉴权但禁止（业务策略 ②：trial/plus/pro 锁死 0）
 
@@ -646,7 +648,7 @@ rm ~/.claude/skills/mr-model/manifest.json
 | `account_disabled` | 账号已禁用 | 「账号已禁用，请联系主仓 admin」 |
 | `account_banned` | 账号被封禁 | 「账号被封禁，请等待封禁结束或联系主仓 admin」 |
 | `mcp_not_enabled` | 当前账号未开通 MCP（trial/plus 锁死 0） | 「当前账号未开通 MCP 会员，**只 ProMax 享 MCP**，升级方式见 §9.8」 |
-| `mcp_not_available` | 创 token 时被拒（plus 档 quota=0 锁死） | 「plus 档不享 MCP，请升级到 ProMax（价格以主仓公告为准），见 §9.8」 |
+| `mcp_not_available` | 当前账号配额锁死（quota=0） | 「当前档位不享 MCP 数据调用，请升级到 ProMax（价格以主仓公告为准），见 §9.8」 |
 
 **契约要点**（2026-08-27 定）：
 - trial / plus / pro **不享 MCP**（quota=0 锁死）
@@ -677,7 +679,7 @@ rm ~/.claude/skills/mr-model/manifest.json
 **A**：
 1. 检查 `MR_MCP_TOKEN` 或 `~/.config/mrmodel/token` 是否设置
 2. 检查 token 格式：`mcp_live_<48hex>`（共 57 字符）
-3. 去主仓 `https://mrmodel.cesario.top/mcp-tokens` 撤销旧 token，创建新的
+3. token 注册即有（1 人 1 个），去 `https://mrmodel.cesario.top/mcp-tokens` 随时查看/复制完整明文；如怀疑泄露，在该页点「重置」，旧 token 立即失效
 4. ⚠️ **不要**把 token 写到 git 仓 / 聊天历史 / 公开 issue
 
 ### 9.2 MCP 端不可达

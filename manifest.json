@@ -1,12 +1,12 @@
 {
   "name": "mr-model",
-  "version": "1.2.1",
+  "version": "1.3.0",
   "min_mcp_server_version": "326",
-  "skill_md_sha256": "4bf32566a401a6711f4c98340e6d4c87a2e3c796fc673fbf4eb8a344b8650c71",
+  "skill_md_sha256": "7673545bb4bf933ade65520eee73f29598131e2a419b704329a77a4aed71b44f",
   "skill_md_url": "https://raw.githubusercontent.com/Cesario-Lzc/M-Model/main/SKILL.md",
   "manifest_url": "https://raw.githubusercontent.com/Cesario-Lzc/M-Model/main/manifest.json",
-  "updated_at": "2026-09-02T10:30:00Z",
-  "changelog": "v1.2.1 文档去价格化: 价格数字全部移除统一「以主仓公告为准」(防改价后装机文档过期撒谎) + 注册即享 20 quota 免费体验引导 + 数据源说明(当前仅「模型先生」, 后续接入更多博主以公告为准)",
+  "updated_at": "2026-09-03T09:00:00Z",
+  "changelog": "v1.3.0 token 注册即有: 1 人 1 token 免申请/免创建/免吊销, 完整明文随时在 mcp-tokens 页查看/复制(告别只展示一次), 泄露点「重置」即换新(旧 token 立即失效); 错误兜底话术同步去「撤销/重新生成」流程",
   "capabilities": {
     "network_egress": "mcp.cesario.top (MCP API) + raw.githubusercontent.com / cdn.jsdelivr.net (拉取更新)",
     "files_written": "~/.claude/skills/mr-model/ (或 MRMODEL_SKILL_DIR) + ~/.config/mrmodel/token",

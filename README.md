@@ -1,6 +1,6 @@
 # M-Model — A 股财经视频 MCP 调用框架
 
-[![Version](https://img.shields.io/badge/version-1.2.1-blue.svg)](https://github.com/Cesario-Lzc/M-Model)
+[![Version](https://img.shields.io/badge/version-1.3.0-blue.svg)](https://github.com/Cesario-Lzc/M-Model)
 [![MCP Server](https://img.shields.io/badge/MCP-11_tools-green.svg)](https://mcp.cesario.top)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey.svg)](#license)
 
@@ -16,7 +16,7 @@ curl -sL https://cdn.jsdelivr.net/gh/Cesario-Lzc/M-Model@main/scripts/install-mr
 
 成品位置：装机完成后 `~/.claude/skills/mr-model/SKILL.md` + `manifest.json` 已就位，启动 Claude 时按 SKILL.md §1 触发词自动激活。
 
-**前置**：注册 mrmodel 账号（[mrmodel.cesario.top](https://mrmodel.cesario.top)）→ 创建 MCP token（[mcp-tokens](https://mrmodel.cesario.top/mcp-tokens)）→ 写入 `~/.config/mrmodel/token`。
+**前置**：注册 mrmodel 账号（[mrmodel.cesario.top](https://mrmodel.cesario.top)）→ 查看/复制 MCP token（[mcp-tokens](https://mrmodel.cesario.top/mcp-tokens)，**注册即有，1 人 1 个**）→ 写入 `~/.config/mrmodel/token`。
 
 ## 它能做什么
 
@@ -80,9 +80,9 @@ trending = call("query_trending_keywords", days=7, top_n=20)
 
 **升级 ProMax**：享 1000 quota / 30 天 + 11 tool 全量，价格以[主仓会员页](https://mrmodel.cesario.top)公告为准。
 
-**升级路径**：登录 [mrmodel.cesario.top](https://mrmodel.cesario.top) → 头像 → 会员中心 → 选 ProMax → 支付 → 等 monitor.sh 异步同步（1-5 分钟）→ 创 MCP token。
+**升级路径**：登录 [mrmodel.cesario.top](https://mrmodel.cesario.top) → 头像 → 会员中心 → 选 ProMax → 支付 → 等 monitor.sh 异步同步（1-5 分钟）→ 配额生效（token 注册即有，无需申请）。
 
-**1 token 跨设备通用**（iPhone / Mac / Linux 同一 token 都享 1000 quota / 30 天，1 用户 1 API key）。
+**1 token 跨设备通用**（iPhone / Mac / Linux 同一 token 都享 1000 quota / 30 天，1 用户 1 API key；完整明文随时在 [mcp-tokens 页](https://mrmodel.cesario.top/mcp-tokens)查看/复制，泄露点「重置」即换新）。
 
 ## 合规边界
 
@@ -94,7 +94,7 @@ trending = call("query_trending_keywords", days=7, top_n=20)
 
 - **MCP 服务**：[mcp.cesario.top](https://mcp.cesario.top)（Bearer token 鉴权）
 - **主仓 Web / API**：[mrmodel.cesario.top](https://mrmodel.cesario.top)
-- **Token 管理**：[mrmodel.cesario.top/mcp-tokens](https://mrmodel.cesario.top/mcp-tokens)
+- **Token 查看/复制/重置**：[mrmodel.cesario.top/mcp-tokens](https://mrmodel.cesario.top/mcp-tokens)（注册即有 · 1 人 1 个）
 - **完整文档**：[SKILL.md](SKILL.md)（约 44KB，11 tool 决策树 + 双模式模板 + 6 高级 tool 范本 + 合规硬闸 + 合规声明常量）
 
 ## 维护规范
