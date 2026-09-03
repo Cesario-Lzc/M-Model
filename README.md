@@ -50,7 +50,7 @@ trending = call("query_trending_keywords", days=7, top_n=20)
 ## 配额成本
 
 > **公式**：`cost = ⌈base + 行数 × per⌉ quota`（向上取整，防拖库；dict 返回走 base 单次）
-> **单位**：**quota**（配额点，30 天滚动窗口；ProMax 享 1000 quota / 30 天，其余档位人人享 20 quota / 30 天体验）
+> **单位**：**quota**（配额点；ProMax 享 1000 quota / 30 天滚动窗口，其余档位人人享 20 quota 终身体验额度，一次性不按月重置）
 
 ### 5 基础 tool
 
@@ -75,7 +75,7 @@ trending = call("query_trending_keywords", days=7, top_n=20)
 
 ## 免费体验与升级
 
-**免费体验**：**所有账号均享 20 quota / 30 天免费体验**（注册即有，11 tool 全部可用，无需付费；轻量查询约可问 6 个问题）。
+**免费体验**：**所有账号均享 20 quota 终身体验额度**（注册即有，一次性赠送不按月重置，11 tool 全部可用，无需付费；轻量查询约可问 6 个问题）。
 
 **升级 ProMax**：享 1000 quota / 30 天 + 11 tool 全量，价格以[官网会员页](https://mrmodel.cesario.top)公告为准。
 

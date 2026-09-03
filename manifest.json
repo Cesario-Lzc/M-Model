@@ -1,12 +1,12 @@
 {
   "name": "mr-model",
-  "version": "1.3.1",
+  "version": "1.3.2",
   "min_mcp_server_version": "326",
-  "skill_md_sha256": "72e0e9bc594a4b658cf1530c7db97ec7e6e638e3a014348b34df30e1a0f4f948",
+  "skill_md_sha256": "4d273a4d1c72469d3c1f23c47f6f66963aab645068d882f10aeab5ef1dd7984f",
   "skill_md_url": "https://raw.githubusercontent.com/Cesario-Lzc/M-Model/main/SKILL.md",
   "manifest_url": "https://raw.githubusercontent.com/Cesario-Lzc/M-Model/main/manifest.json",
-  "updated_at": "2026-09-03T10:30:00Z",
-  "changelog": "v1.3.1 人人保底 20: 所有账号状态正常的用户人人享 20 quota / 30 天体验(废除 trial/plus/pro 锁死 0 旧语义), ProMax 1000/admin 无限不变; §8.2 移除 mcp_not_available 幽灵错误码, §9.8 升级指引改写; README 精简为纯用户向 (删维护规范章/内部指针), 全文内部词清理",
+  "updated_at": "2026-09-03T23:00:00Z",
+  "changelog": "v1.3.2 终身体验额度: 20 quota = 终身一次性(不按月重置, 修正 30 天窗口自动重置旧表述), ProMax 1000/30 天滚动窗口不变; §8 全错误码话术客气化 + 异常引导官网联系开发者; 治本 §8.3/§9.3 自然月归零旧机制残留",
   "capabilities": {
     "network_egress": "mcp.cesario.top (MCP API) + raw.githubusercontent.com / cdn.jsdelivr.net (拉取更新)",
     "files_written": "~/.claude/skills/mr-model/ (或 MRMODEL_SKILL_DIR) + ~/.config/mrmodel/token",
