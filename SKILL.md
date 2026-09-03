@@ -10,7 +10,7 @@ version: 1.2.1
 > **本 skill 不是投资框架，不是博主方法论，不是新分析体系。**
 > 它**只是**一个 MCP 调用框架 + 输出规范化层 + 自更新外壳。
 > 所有分析逻辑由 MCP 端 `_DIALECTICS_META_PROMPT` (v316 第四层) 注入 + 客户端 LLM 按 `<<<DIA>>>` 契约产出。
-> **数据源**：目前仅收录财经博主「模型先生」的 A 股视频数据；后续将接入更多博主，以主仓最新公告为准。
+> **数据源**：目前仅收录财经博主「模型先生」的 A 股视频数据；后续将接入更多博主，以官网最新公告为准。
 
 ## 1. 概述 + 触发词
 
@@ -28,11 +28,11 @@ version: 1.2.1
 - ✅ 行情数据（联动 a-stock-data skill）
 - ❌ 非 A 股（美股/港股/期货）—— 走 mr-overseas-kline
 - ❌ 个股直接买卖建议 —— 合规硬闸硬挡
-- ❌ 主仓管理后台操作 —— 走主仓 admin 后台
+- ❌ 管理后台操作（封号/改配额等）—— 不在 MCP 能力范围
 
 ### 核心约束
-- **不动 A1**（本 skill 仅本地工具）— 不入任何 git 仓
-- **不动主仓**（主仓 mcp_tokens 鉴权）— 只读 + 调 11 tool
+- **纯本地工具** — 本 skill 仅本地运行，不落 git 仓
+- **只读访问**（token 鉴权）— 只读 + 调 11 tool，无写入/管理能力
 - **不入 vault**（vault 是写书素材库，技能工具集职责分离）
 
 ### 首次激活引导（v1.2.0 新增）
@@ -40,11 +40,10 @@ version: 1.2.1
 > 还可以问我：① 最近 30 天对 XX（个股）的多空比 ② 最近 7 天平台都在聊什么（热词）③ 某条视频具体讲了什么
 
 ### 配额档位速记
-- **新注册**（role=user）：享 20 quota 体验（first_bonus）
-- **trial / plus / pro**：**锁死 0，不享 MCP**（不是"5 基础 tool 免费"，旧文案已废）
-- **ProMax**（价格以主仓公告为准）：1000 quota / 30 天 + 11 tool 全量
+- **所有账号**（user / trial / plus / pro）：**人人享 20 quota / 30 天体验**（账号状态正常即可，11 tool 全部可用）
+- **ProMax**（价格以官网公告为准）：1000 quota / 30 天 + 11 tool 全量
 - **admin / sub_admin**：无限（-1）
-- 触发 403 `mcp_not_enabled` 时按 §8.2 话术引导升级，**禁止承诺"基础 tool 免费"**
+- 体验额度用尽返 429 `quota_exceeded`：等 30 天窗口自动重置，或升级 ProMax（见 §9.8）
 
 ---
 
@@ -126,7 +125,7 @@ curl -X POST https://mcp.cesario.top/mcp \
 #### 5 基础 tool
 
 > **配额公式**：`cost = ⌈base + 行数 × per⌉ quota`（向上取整，防拖库；非 list 返 base 单次）
-> **单位**：**quota**（配额点，30 天滚动窗口；ProMax 享 1000 quota / 30 天，trial/plus/pro 锁死 0；SSOT 字段 `quota_limit` / `quota_cost` / `quota_remaining` 见 `backend/mcp_auth.py`）
+> **单位**：**quota**（配额点，30 天滚动窗口；ProMax 享 1000 quota / 30 天，其余档位人人享 20 quota / 30 天体验）
 
 | Tool | 必填 | 关键可选 | 默认值 | 配额成本 (quota) | 返回类型 |
 |------|------|----------|--------|------------------|----------|
@@ -369,9 +368,9 @@ LLM 输出时若命中，**该词单独标红或加粗**（前端渲染层判断
 3. 检查是否含个性化建议（基于"你的持仓/偏好/资金量"）
 4. 末尾是否原样含合规声明常量（缺 → 补）
 
-### 4.7 主仓对齐要点（不可破坏）
+### 4.7 输出对齐要点（不可破坏）
 
-参考主仓 `config/system_prompt.yaml v1.0.4`：
+平台输出规范（与官网 AI 分析对齐）：
 - **隐私红线 P0**：不透露 GLM/Claude 等模型名（用"技术实现细节不便透露"）
 - **禁提数据源品牌**：涨乐/华泰/腾讯/东方财富/同花顺/任何 skill/API 统一用"本平台数据"
 - **"凡指代博主都改博主"**（博主表达方式约定）
@@ -557,15 +556,15 @@ MCP 11 tool 不提供实时行情数据。
 
 **LLM 输出**：
 > 未找到 30 天内关于"XX"的视频。建议：① 简化关键词 ② 扩时间窗口到 90 天 ③ 检查拼写。
-> tx_id: `uuid-xxx`（可在主仓 mcp_usage_logs 查）
+> tx_id: `uuid-xxx`（可在官网 mcp-tokens 页查用量）
 
 ### 6.4 配额超限范本
 
 **MCP 返 429**：`quota_exceeded`，`Retry-After: 86400`
 
 **LLM 输出**：
-> 本月 MCP 配额已用尽（X/Y），请等下月窗口重置（1 天 0 时归零）。
-> 如需立即继续，可在主仓升级配额（ProMax 享 1000 quota / 30 天）。
+> 本期 MCP 配额已用尽（X/Y），将在 30 天窗口结束时自动重置。
+> 如需立即继续，可在官网升级配额（ProMax 享 1000 quota / 30 天）。
 
 ### 6.5 鉴权失败范本
 
@@ -607,7 +606,7 @@ LLM 第一次调 MCP tool 之前：
 
 1. 读本地 `manifest.json` + `mtime`（文件最后修改时间）
 2. **mtime < 1 小时 → 跳过检查**（避免短时间多次拉取）
-3. 否则发 GET 到 `manifest_url`（**不**烧 MCP 配额，走主仓静态资源）
+3. 否则发 GET 到 `manifest_url`（**不**烧 MCP 配额，走静态资源）
 4. 对比 `skill_md_sha256`：
    - **一致** → 继续，**不**更新 mtime
    - **不一致** → **提示用户**："发现新版本 v1.x.x，changelog 摘要：...，是否更新？"
@@ -641,19 +640,18 @@ rm ~/.claude/skills/mr-model/manifest.json
 | `invalid_token` | token_hash 不匹配 / status≠active | 「token 无效或已重置，去 https://mrmodel.cesario.top/mcp-tokens 查看/复制完整 token（注册即有）」 |
 | `expired` | expires_at < now | 「token 已过期，去 https://mrmodel.cesario.top/mcp-tokens 点「重置」后换用新 token」 |
 
-### 8.2 403 已鉴权但禁止（业务策略 ②：trial/plus/pro 锁死 0）
+### 8.2 403 已鉴权但禁止（账号状态异常）
 
 | 错误码 | 原因 | 兜底话术 |
 |--------|------|----------|
-| `account_disabled` | 账号已禁用 | 「账号已禁用，请联系主仓 admin」 |
-| `account_banned` | 账号被封禁 | 「账号被封禁，请等待封禁结束或联系主仓 admin」 |
-| `mcp_not_enabled` | 当前账号未开通 MCP（trial/plus 锁死 0） | 「当前账号未开通 MCP 会员，**只 ProMax 享 MCP**，升级方式见 §9.8」 |
-| `mcp_not_available` | 当前账号配额锁死（quota=0） | 「当前档位不享 MCP 数据调用，请升级到 ProMax（价格以主仓公告为准），见 §9.8」 |
+| `account_disabled` | 账号已禁用 | 「账号已禁用，请联系官方支持」 |
+| `account_banned` | 账号被封禁 | 「账号被封禁，请等待封禁结束或联系官方支持」 |
+| `mcp_not_enabled` | 当前账号未开放 MCP（罕见；正常注册账号人人享 20 quota 体验） | 「当前账号未开放 MCP 调用，请确认账号状态正常；如需 1000 quota / 30 天大配额可升级 ProMax，见 §9.8」 |
 
-**契约要点**（2026-08-27 定）：
-- trial / plus / pro **不享 MCP**（quota=0 锁死）
-- 新注册 20 quota 体验（`first_bonus`，promax 时清掉）
-- 只 **ProMax** 享 1000 quota / 30 天，admin / sub_admin 无限（-1）
+**契约要点**（2026-09-03 更新）：
+- **人人保底 20**：所有账号状态正常的用户均享 20 quota / 30 天体验（11 tool 全部可用）
+- **ProMax** 1000 quota / 30 天；admin / sub_admin 无限（-1）
+- 体验额度用尽返 429 `quota_exceeded`：等 30 天窗口自动重置，或升级 ProMax（见 §9.8）
 
 ### 8.3 429 限流/配额
 
@@ -666,7 +664,7 @@ rm ~/.claude/skills/mr-model/manifest.json
 
 | 错误码 | 原因 | 兜底话术 |
 |--------|------|----------|
-| 500 | MCP 端异常 | 「MCP 端异常，请稍后重试或联系主仓 admin」 |
+| 500 | MCP 端异常 | 「MCP 端异常，请稍后重试或联系官方支持」 |
 | 503 | 服务临时不可用 | 「MCP 服务维护中，请稍后重试」 |
 
 ---
@@ -686,7 +684,7 @@ rm ~/.claude/skills/mr-model/manifest.json
 
 **Q**：`curl https://mcp.cesario.top/healthz` 返非 200？
 **A**：
-1. 服务维护期间（无业务方指示不动 A1）— 等服务恢复
+1. 服务维护期间 — 等服务恢复
 2. CF 代理问题：检查 `https://mcp.cesario.top` 是否能打开
 3. 本地网络问题：检查 本机网络 / 热点
 
@@ -696,7 +694,7 @@ rm ~/.claude/skills/mr-model/manifest.json
 **A**：
 1. 检查本月初是否有滥用（高频自动级联调用）
 2. 配额窗口 = 自然月（1 号 0 时归零），不等月底
-3. 在主仓 mcp-tokens 页查看用量
+3. 在官网 mcp-tokens 页查看用量
 
 ### 9.4 行情 skill 未装
 
@@ -726,7 +724,7 @@ git clone https://github.com/simonlin1212/a-stock-data ~/.claude/skills/a-stock-
 
 ### 9.7 跨设备同步
 
-**Q**：在 NAS/枣园/A1 服务器也想用？
+**Q**：在别的电脑/服务器也想用？
 **A**：
 ```bash
 # 在目标机器上
@@ -736,22 +734,22 @@ cp ~/.claude/skills/mr-model/manifest.json ~/.claude/skills/mr-model/
 # 配置 token（环境变量或 ~/.config/mrmodel/token）
 ```
 
-### 9.8 如何升级到 ProMax（v1.1.0 新增，痛点 ④ 治本）
+### 9.8 如何升级到 ProMax
 
-**Q**：报 `mcp_not_enabled` / `mcp_not_available` 怎么升级到 ProMax？
+**Q**：体验额度（20 quota / 30 天）用完了，或报 `mcp_not_enabled`，怎么升级 ProMax？
 
 **A**：
 
 1. 登录 https://mrmodel.cesario.top → 头像 → 会员中心 → 选 ProMax
-2. 支付开通：价格以主仓首页公告为准
-3. 创 MCP token：https://mrmodel.cesario.top/mcp-tokens → 写入 `~/.config/mrmodel/token`（详见 §2.1）
+2. 支付开通：价格以官网首页公告为准
+3. token 无需重新创建：注册即有，升级后同一 token 立即享 1000 quota / 30 天
 
-**为啥 trial/plus 不享 MCP**？
+**体验额度 vs ProMax**？
 
-- 业务策略：trial/plus/pro 锁死 quota=0，只 ProMax 享 1000 quota / 30 天（业务策略 4 项契约要点，详主仓 Web 公告）
-- 目的：把 MCP 这条产品线做出差异化（ProMax 是 A 股分析重度用户档）
-- 5 基础 tool 对应的查询能力在主仓 Web 端免费（网页直接查视频/博主/评论）；但 **MCP 通道不存在"基础 tool 免费"**，配额按档位（trial/plus/pro 锁 0）
-- **6 高级 tool + 大配额 + 多用户共享 + 跨设备同步** = ProMax 独享价值
+- 人人保底 20 quota / 30 天（所有账号状态正常的用户），轻量查询约可问 6 个问题
+- ProMax 1000 quota / 30 天，重度分析不心疼；**6 高级 tool + 大配额 + 多用户共享 + 跨设备同步** = ProMax 核心价值
+- 5 基础 tool 对应的查询能力在官网 Web 端免费（网页直接查视频/博主/评论）；MCP 通道的价值是让 AI 助手自动化调用全部 11 tool
+- 体验额度用尽返 429 `quota_exceeded`：等 30 天窗口自动重置，或升级 ProMax 立即恢复大配额
 
 **升级后立即可调**：1 token 跨设备不区分（iPhone/Mac/Linux 同一 token 都享 1000 quota / 30 天，1 用户 1 API key 策略）
 
@@ -781,7 +779,7 @@ cp ~/.claude/skills/mr-model/manifest.json ~/.claude/skills/mr-model/
   "create_time_str": "2026-08-24 17:01",   // CST 字符串
   "duration": 47.4,                        // 视频时长（秒）
   "statistics": {"digg_count": 7131, "comment_count": 1315, "share_count": 612, "play_count": 0, "collect_count": 793},
-  "tags": ["综合"],                        // 主仓采集标签（空时 L1 词典兜底打）
+  "tags": ["综合"],                        // 平台采集标签（空时 L1 词典兜底打）
   "content_type": "video",
   "author_nickname": "模型先生",           // 博主名（v316 update 唯一在网博主）
   "author_sec_uid": "MS4wLjABAAAA...",     // 抖音 sec_uid
@@ -942,8 +940,17 @@ cp ~/.claude/skills/mr-model/manifest.json ~/.claude/skills/mr-model/
 
 ## 附录 B：变更日志
 
+- **v1.3.1** (2026-09-03) — 人人保底 20 体验
+  - 配额档位改版：**所有账号状态正常的用户人人享 20 quota / 30 天体验**（废除 trial/plus/pro 锁死 0 旧语义）；ProMax 1000 / admin 无限不变
+  - §8.2 错误码表移除 `mcp_not_available`（服务端已无此码）；403 话术对齐新配额语义
+  - §9.8 升级指引改写（触发场景 = 体验额度用尽 429 或 `mcp_not_enabled`）
+  - 全文内部词清理 + §6.4 配额重置机制描述对齐 30 天滚动窗口
+
+- **v1.3.0** (2026-09-03) — token 注册即有
+  - 1 人 1 token 免申请/免创建，完整明文随时在 mcp-tokens 页查看/复制（告别只展示一次），泄露点「重置」即换新（旧 token 立即失效）；错误兜底话术同步去「撤销/重新生成」流程
+
 - **v1.2.1** (2026-09-02) — 文档去价格化
-  - 价格数字全部移除（README + SKILL.md 话术），统一「以主仓公告为准」——避免改价后装机文档过期撒谎
+  - 价格数字全部移除（README + SKILL.md 话术），统一「以官网公告为准」——避免改价后装机文档过期撒谎
   - README 增「注册即享 20 quota 免费体验」引导；README/SKILL.md 增数据源说明（当前仅「模型先生」，后续接入更多博主以公告为准）
 
 - **v1.1.0** (2026-08-27) — 5 痛点治本

@@ -1,12 +1,12 @@
 # M-Model — A 股财经视频 MCP 调用框架
 
-[![Version](https://img.shields.io/badge/version-1.3.0-blue.svg)](https://github.com/Cesario-Lzc/M-Model)
+[![Version](https://img.shields.io/badge/version-1.3.1-blue.svg)](https://github.com/Cesario-Lzc/M-Model)
 [![MCP Server](https://img.shields.io/badge/MCP-11_tools-green.svg)](https://mcp.cesario.top)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey.svg)](#license)
 
 > 11 个 MCP 工具，5 基础 + 6 高级，A 股财经视频全维度分析（博主观点 / 视频检索 / 转录 / 评论热词 / 多空情绪 / 8 维框架 / 平台热词）。
 >
-> **数据源**：目前仅收录财经博主「模型先生」的 A 股视频数据；后续将接入更多博主，以 [主仓最新公告](https://mrmodel.cesario.top) 为准。
+> **数据源**：目前仅收录财经博主「模型先生」的 A 股视频数据；后续将接入更多博主，以 [官网最新公告](https://mrmodel.cesario.top) 为准。
 
 ## 快速开始
 
@@ -50,8 +50,7 @@ trending = call("query_trending_keywords", days=7, top_n=20)
 ## 配额成本
 
 > **公式**：`cost = ⌈base + 行数 × per⌉ quota`（向上取整，防拖库；dict 返回走 base 单次）
-> **单位**：**quota**（配额点，30 天滚动窗口；ProMax 享 1000 quota / 30 天，trial/plus/pro 锁死 0）
-> SSOT 字段：`quota_limit` / `quota_cost` / `quota_remaining`（`backend/mcp_auth.py` `TOOL_QUOTA_BASE` + `PER_ROW_WEIGHT` + `_calc_cost`）
+> **单位**：**quota**（配额点，30 天滚动窗口；ProMax 享 1000 quota / 30 天，其余档位人人享 20 quota / 30 天体验）
 
 ### 5 基础 tool
 
@@ -76,11 +75,11 @@ trending = call("query_trending_keywords", days=7, top_n=20)
 
 ## 免费体验与升级
 
-**免费体验**：**[注册](https://mrmodel.cesario.top) 即享 20 quota 免费体验额度**（11 tool 全部可用，无需付费）。
+**免费体验**：**所有账号均享 20 quota / 30 天免费体验**（注册即有，11 tool 全部可用，无需付费；轻量查询约可问 6 个问题）。
 
-**升级 ProMax**：享 1000 quota / 30 天 + 11 tool 全量，价格以[主仓会员页](https://mrmodel.cesario.top)公告为准。
+**升级 ProMax**：享 1000 quota / 30 天 + 11 tool 全量，价格以[官网会员页](https://mrmodel.cesario.top)公告为准。
 
-**升级路径**：登录 [mrmodel.cesario.top](https://mrmodel.cesario.top) → 头像 → 会员中心 → 选 ProMax → 支付 → 等 monitor.sh 异步同步（1-5 分钟）→ 配额生效（token 注册即有，无需申请）。
+**升级路径**：登录 [mrmodel.cesario.top](https://mrmodel.cesario.top) → 头像 → 会员中心 → 选 ProMax → 支付 → 约 1-5 分钟自动生效（token 注册即有，无需申请，升级后同一 token 直接享大配额）。
 
 **1 token 跨设备通用**（iPhone / Mac / Linux 同一 token 都享 1000 quota / 30 天，1 用户 1 API key；完整明文随时在 [mcp-tokens 页](https://mrmodel.cesario.top/mcp-tokens)查看/复制，泄露点「重置」即换新）。
 
@@ -93,18 +92,9 @@ trending = call("query_trending_keywords", days=7, top_n=20)
 ## 链接
 
 - **MCP 服务**：[mcp.cesario.top](https://mcp.cesario.top)（Bearer token 鉴权）
-- **主仓 Web / API**：[mrmodel.cesario.top](https://mrmodel.cesario.top)
+- **官网 Web / API**：[mrmodel.cesario.top](https://mrmodel.cesario.top)
 - **Token 查看/复制/重置**：[mrmodel.cesario.top/mcp-tokens](https://mrmodel.cesario.top/mcp-tokens)（注册即有 · 1 人 1 个）
 - **完整文档**：[SKILL.md](SKILL.md)（约 44KB，11 tool 决策树 + 双模式模板 + 6 高级 tool 范本 + 合规硬闸 + 合规声明常量）
-
-## 维护规范
-
-后续持续优化 SKILL.md / README / install 模版时：
-
-1. **必带事例**：每个新增 tool / 新增成本规则 / 新增模式，都要在文档里列出**调用事例**（输入参数 + 输出结构 + 成本），禁止纯文字描述让用户脑补。
-2. **成本表联动更新**：改 `TOOL_QUOTA_BASE` / `PER_ROW_WEIGHT` 必同步改 SKILL.md §3.2 + README 配额成本表 + manifest.json changelog（SSOT = `backend/mcp_auth.py`）。
-3. **内部词清零**：commit 前 grep 内部代号 / 内部决策记录 / 内部时间标签 / 旧仓名（如 `mr-model-skill`）等，零容忍（公开仓规则）。
-4. **公开 / 私密默认**：所有 git 仓默认 `--visibility private`，本仓 M-Model 在公开白名单（公开仓白名单护栏，2026-08-21 录入），其余 19 仓 private。
 
 ## License
 
