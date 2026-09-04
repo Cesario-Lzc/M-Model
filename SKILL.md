@@ -2,7 +2,7 @@
 name: mr-model
 description: 「模型先生」+ 任何问题（博主观点/视频检索/评论热词/最近 30 天对个股怎么看）→ 触发本 skill。内部按 11 tool 决策树调用 https://mcp.cesario.top（5 基础 tool + 6 高级 tool：query_video_list / search_videos / query_blogger_opinions / search_video_transcripts / query_comments / query_real_desc_text / query_dimension_levels / query_transcript_keywords / query_aggregated_sentiment / query_creator_meta / query_trending_keywords），用 mcp_tokens Bearer 鉴权。输出两种模式：① 灵活模式（短问答/快查只用 3 段式）② FULL 模式（深度分析输出 `<<<DIA>>>` 11 字段块：主要矛盾/主要方面/看多/看空/多空比/量变质变/现象本质/必然偶然/博主视角/数据视角/交叉关系）+ 合规硬闸（禁个股买卖方向/仓位/价位）。自动联动 ~/.claude/skills/ 下已装行情数据 skill（a-stock-data 等）。需先设置 MR_MCP_TOKEN 环境变量或 ~/.config/mrmodel/token 文件。懒校验、不烧配额、manifest 提示式自更新（jsdelivr CDN 优先 max-age=604800 减少 5min 边缘缓存坑）。
 origin: custom
-version: 1.2.1
+version: 1.3.3
 ---
 
 # mrmodel-skill — mr-model MCP 调用框架
@@ -24,7 +24,7 @@ version: 1.2.1
 - ✅ 博主最近 X 天对某主题的观点时间线
 - ✅ 单视频深度解读（14 字段全量 / 8 维档位 / 转录 5 类分析 / 多空情绪聚合）
 - ✅ 平台热词趋势（最近 N 天热词/新词/上升词）
-- ✅ 博主 meta（元信息：总视频数/活跃度/影响力）
+- ✅ 博主 meta（元信息：总视频数/更新频率/影响力）
 - ✅ 行情数据（联动 a-stock-data skill）
 - ❌ 非 A 股（美股/港股/期货）—— 走 mr-overseas-kline
 - ❌ 个股直接买卖建议 —— 合规硬闸硬挡
@@ -74,17 +74,42 @@ chmod 600 ~/.config/mrmodel/token
 - **格式正确 → 静默通过，第一次实际调用时才连 MCP 鉴权**
 - **格式错误 → 立即报错 "token 格式不合法，应为 mcp_live_<48hex> 共 57 字符"**
 
-### 2.3 测试连通性命令（可选）
+### 2.3 测试连通性命令（可选，0 配额成本）
+
+> ⚠️ **请求头缺一不可（实测 2026-09-04）**：MCP 端套了 Cloudflare 代理，`User-Agent` 缺失或不像浏览器 → **403（error 1010）**；`Accept` 不含 `text/event-stream` → **406**。下面的示例已带全，直接复制可用。
 
 ```bash
-# 11 tool 鉴权测试（tools/list 不烧配额）
-curl -X POST https://mcp.cesario.top/mcp \
+# 11 tool 清单测试（tools/list 不烧配额）
+curl -s -X POST https://mcp.cesario.top/mcp \
   -H "Authorization: Bearer $MR_MCP_TOKEN" \
   -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -H "User-Agent: Mozilla/5.0" \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
-
-# 期望：返 11 个 tool 名称（5 基础 + 6 高级），含 query_video_list / query_real_desc_text
 ```
+
+**响应是 SSE 流格式**，11 个 tool 名在 `data:` 行的 JSON 里（`result.tools[].name`）：
+
+```
+event: message
+data: {"jsonrpc":"2.0","id":1,"result":{"tools":[{"name":"query_video_list",...}, ...]}}
+```
+
+```bash
+# 一行提取 11 个 tool 名（验证鉴权通过）
+curl -s -X POST https://mcp.cesario.top/mcp \
+  -H "Authorization: Bearer $MR_MCP_TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -H "User-Agent: Mozilla/5.0" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' \
+  | grep '^data:' | sed 's/^data: //' | python3 -c "import json,sys; print([t['name'] for t in json.load(sys.stdin)['result']['tools']])"
+```
+
+**传输层语义（实测 2026-09-04）**：
+- **无状态**：服务端不返回 `Mcp-Session-Id`，**不需要** initialize 握手，每个 POST 独立携带 token 即可
+- 直接 POST `tools/call` 可行（跳过 initialize + notifications/initialized 照样成功）
+- 每次请求都必须带上面 4 个头（Authorization / Content-Type / Accept / User-Agent）
 
 ---
 
@@ -97,14 +122,14 @@ curl -X POST https://mcp.cesario.top/mcp \
 ├─ 包含"最近"/"最新"/"今天"/"昨天" + "视频"？
 │   └─ YES → query_video_list(page=1, page_size=20)  ← 默认 20 条
 ├─ 包含"博主最近"/"30 天"/"X 天" + "怎么看" + 个股/板块名？
-│   └─ YES → query_blogger_opinions(keyword=..., date_from=-30d, date_to=今天, limit=10)
+│   └─ YES → query_blogger_opinions(keyword=..., date_from=-30d, date_to=今天, limit=20)
 ├─ 包含"转录里"/"说过"/"提过" + 关键词？
-│   └─ YES → search_video_transcripts(keyword=..., limit=5)
+│   └─ YES → search_video_transcripts(keyword=..., limit=20)
 ├─ 包含"评论"/"评论区"/"热不热"？
 │   └─ YES → 先 query_video_list 拿最新视频 → 读 dict.aweme_id → query_comments(aweme_id=...)
 │            （query_comments 返的是聚合统计视图：total_comments/avg_digg/top_keywords，不是评论 list）
 ├─ 包含具体关键词（个股名/板块名/概念名）但无时间限定？
-│   └─ YES → search_videos(query=..., page=1, page_size=10)  ← 模糊兜底
+│   └─ YES → search_videos(query=..., page=1, page_size=20)  ← 模糊兜底
 │
 ├─ 已知 aweme_id，要单视频 14 字段完整元信息（desc_text + 8 维 + analysis_framework）？
 │   └─ YES → query_real_desc_text(aweme_id=...)  ← 高级 tool
@@ -114,6 +139,8 @@ curl -X POST https://mcp.cesario.top/mcp \
 │   └─ YES → query_transcript_keywords(aweme_id=...)  ← 高级 tool
 ├─ 含"多空"/"看多看空"/"情绪"/"拐点" + 关键词？
 │   └─ YES → query_aggregated_sentiment(keyword=..., granularity=weekly|monthly)  ← 高级 tool
+│            （⚠️ 0 命中时返空 weekly_distribution={} 无 _hint 提示 → 降级调
+│              query_blogger_opinions 拉原始视频，由 LLM 自行归纳多空）
 ├─ 含"博主"/"靠不靠谱"/"影响力"/"活跃度"/"更新频率"？
 │   └─ YES → query_creator_meta(sec_uid=...)  ← 高级 tool（默认唯一博主"模型先生"）
 └─ 含"最近热词"/"平台上在聊什么"/"新词"/"上升词"？
@@ -130,10 +157,10 @@ curl -X POST https://mcp.cesario.top/mcp \
 | Tool | 必填 | 关键可选 | 默认值 | 配额成本 (quota) | 返回类型 |
 |------|------|----------|--------|------------------|----------|
 | `query_video_list` | — | `page`, `page_size` (≤20) | page=1, page_size=20 | base=1, per=0.1×N（page_size=20 → 3） | **list[dict]**（单条 video 全字段） |
-| `search_videos` | `query` | `page`, `page_size` (≤20) | page=1, page_size=10 | base=1, per=0.1×N（page_size=10 → 2） | **list[dict]**（0 命中时返 `_hint` dict） |
-| `query_blogger_opinions` | `keyword` (≥2字) | `date_from`, `date_to`, `limit` (1-20) | limit=10 | base=2, per=0.1×N（limit=10 → 3） | **list[dict]**（0 命中时 `_hint.reason=no_match`） |
-| `search_video_transcripts` | `keyword` | `limit` (1-20) | limit=5 | base=2, per=0.05×N（limit=5 → 3） | **list[dict]**（含 transcript 30 字 snippet） |
-| `query_comments` | `aweme_id` | `limit` | limit=20 | base=1, per=0（dict 聚合，per_row 不计） | **dict 聚合**（total/avg_digg/max_digg/top_keywords） |
+| `search_videos` | `query` | `page`, `page_size` (≤20) | page=1, page_size=20 | base=1, per=0.1×N（page_size=20 → 3） | **list[dict]**（0 命中时返 `_hint` dict） |
+| `query_blogger_opinions` | `keyword` (≥2字) | `date_from`, `date_to`, `limit` (1-20) | limit=20 | base=2, per=0.1×N（limit=20 → 4） | **list[dict]**（0 命中时 `_hint.reason=no_match`） |
+| `search_video_transcripts` | `keyword` | `limit` (1-20) | limit=20 | base=2, per=0.05×N（limit=20 → 3） | **list[dict]**（含转录 snippet ≤65 字） |
+| `query_comments` | `aweme_id` | — | — | 1（dict 聚合，per_row 不计） | **dict 聚合**（total/avg_digg/max_digg/top_keywords） |
 
 #### 6 高级 tool（v1.1.0 新增）
 
@@ -144,28 +171,52 @@ curl -X POST https://mcp.cesario.top/mcp \
 | `query_real_desc_text` | `aweme_id` (18-20位) | — | — | 1 | **dict**（14 字段：VIDEO_LIST_ALLOWLIST + dialectics_tags + framework_dimensions + analysis_framework） |
 | `query_dimension_levels` | `aweme_id` | — | — | 1 | **dict**（8 维每维 level 0/1/2 + label 翻译 + 数据源 + 分析步骤） |
 | `query_transcript_keywords` | `aweme_id` | — | — | 2 | **dict**（5 类：词频 Top50 + NER + 词性 + 关键句 Top5 + 摘要 prompt） |
-| `query_aggregated_sentiment` | `keyword` (≥2字) | `date_from`, `date_to`, `granularity` (weekly\|monthly) | granularity=weekly | 2 | **dict**（bull/bear/neutral 计数 + 多空比 + 拐点 + TOP 3 引用） |
-| `query_creator_meta` | `sec_uid` (可选) | — | 当前唯一博主"模型先生" | 1 | **dict**（stats + activity_score） |
+| `query_aggregated_sentiment` | `keyword` (≥2字) | `date_from`, `date_to`, `granularity` (weekly\|monthly) | granularity=weekly | 2 | **dict**（周/月桶计数 + 拐点；⚠️ 不传 date_from/date_to 默认全量时间窗，实测常返空结果，建议显式传时间窗） |
+| `query_creator_meta` | `sec_uid` (可选) | — | 当前唯一博主"模型先生" | 1 | **dict**（stats 10 字段：视频数/点赞/评论/分享/更新频率等） |
 | `query_trending_keywords` | — | `days` (1-30), `top_n` (10-100), `sort_by` (videos\|digg\|comment) | days=7, top_n=50, sort_by=videos | 2 | **dict**（窗口热词 + 新词 + 上升词） |
 
-**关键差异（实测 2026-08-27）**：
+**关键差异（实测 2026-09-04）**：
 - ❌ 不是「list 包 dict」形态
 - ✅ 全部 dict 形态（page_size=1 单条 / >1 时 list 包 dict）
 - ✅ 顶级字段直接是 video 数据 + `_meta`（quota_cost/remaining） + `_tx_id`（uuid4）
-- ✅ 0 命中时 query_blogger_opinions / search_videos 返 `_hint` dict 替代空结果
+- ✅ 0 命中时 query_blogger_opinions / search_videos 返 `_hint` dict 替代空结果（**query_aggregated_sentiment 例外：0 命中返空 `weekly_distribution: {}`，无 _hint**）
 - ✅ 6 高级 tool 都是单条 dict 返回，aweme_id/keyword 是必填
+
+**⭐ JSON-RPC content 多 item 解析（必读，最容易踩的坑）**：
+
+服务端（FastMCP）把 **list[dict] 类型的 tool 返回值拆成 N 条独立的 content item**——每条视频一个 text item，**没有** structuredContent。客户端拿到响应后必须**遍历 `result.content[]` 逐条 `json.loads`**：
+
+```
+query_video_list(page_size=20) 的响应结构：
+result.content = [
+  {"type": "text", "text": "{视频1的完整JSON}"},   ← content[0]
+  {"type": "text", "text": "{视频2的完整JSON}"},   ← content[1]
+  ...
+  {"type": "text", "text": "{视频20的完整JSON}"}   ← content[19]
+]
+```
+
+```python
+# 错误写法（拿到空/解析失败）：json.loads(result.content[0].text) 只拿到第 1 条
+# 正确写法：遍历全部 content item 逐条解析
+videos = [json.loads(item.text) for item in response["result"]["content"] if item["type"] == "text"]
+```
+
+- 单 dict 返回的 tool（query_comments / 全部 6 高级 tool）→ content 只有 **1 条** item，`json.loads(content[0].text)` 即可
+- 0 命中返 `_hint` 时 → content 也只有 1 条 item，text 里是 `{"_hint": {...}, "_tx_id": ...}`
+- 判断命中条数用 `len(result.content)`，**不要**在 text 里数
 
 ### 3.3 配额保护策略（KISS：宁可少调不烧配额）
 
 > 单位：**quota**（配额点；ProMax 1000 / 30 天滚动窗口，其余档位 20 quota 终身体验）
 
 1. **默认 page_size=20**（query_video_list 单次 cost=3 quota），超 20 提示用户"是否需要翻第 2 页"（page=2 需用户显式确认）
-2. **search_videos page_size=10**（cost=2 quota）+ **query_blogger_opinions limit=10**（cost=3 quota，默认足够覆盖博主典型 7-30 天观点）
-3. **search_video_transcripts limit=5**（cost=3 quota，snippet 30 字 × 5 = 150 字，token 经济）
+2. **search_videos page_size=20**（cost=3 quota）+ **query_blogger_opinions limit=20**（cost=4 quota，默认足够覆盖博主典型 7-30 天观点；控成本可手动降到 limit=10 → cost=3）
+3. **search_video_transcripts limit=20**（cost=3 quota，snippet ≤65 字 × 20 = 约 1300 字；轻量快查可手动降到 limit=5 → cost=2，token 更经济）
 4. **query_comments 单次 1 个 aweme_id**（聚合 dict 统计，cost=1 quota）
 5. **高级 tool base 1-2 quota**（query_transcript_keywords / query_aggregated_sentiment / query_trending_keywords cost=2 quota，含 jieba/NER/聚合计算；query_real_desc_text / query_dimension_levels / query_creator_meta cost=1 quota）
 6. **不级联调用**：拿不到结果就告诉用户，不无限重试
-7. **配额透明（v1.2.0 新增）**：每次 MCP 调用成功后，输出末尾展示一行「本次消耗 X quota / 剩余 Y quota」（读返回的 `_meta.quota_cost` / `quota_remaining`），让用户对余量心里有数，避免"突然撞 429"的体验落差
+7. **配额透明（v1.2.0 新增）**：每次 MCP 调用成功后，展示一行「本次消耗 X quota」（读返回的 `_meta.quota_cost`）。⚠️ **`_meta.quota_remaining` 在服务端当前版本不可靠（实测恒定不递减），不要向用户展示或据此判断余量**——余量以官网 mcp-tokens 页显示为准，避免"明明还有额度却以为用尽"的误导
 
 ### 3.4 决策树禁忌
 
@@ -175,9 +226,9 @@ curl -X POST https://mcp.cesario.top/mcp \
 - **不并行调多个高级 tool**（cost=2 叠加爆配额，串行调用更好）
 - **已知 aweme_id 时优先 query_real_desc_text**（避免先 query_video_list 拿 id 再调的中间步骤）
 
-### 3.5 0 命中处理（`_hint` 字段识别）
+### 3.5 0 命中处理（`_hint` 字段识别 + sentiment 空结果）
 
-MCP 端 v326 M3 治本：0 命中时返 `_hint` 字典替代 list 包空 dict：
+MCP 端 v326 M3 治本：**query_blogger_opinions / search_videos** 0 命中时返 `_hint` 字典替代 list 包空 dict：
 
 ```json
 {
@@ -192,6 +243,12 @@ MCP 端 v326 M3 治本：0 命中时返 `_hint` 字典替代 list 包空 dict：
 
 LLM 看到 `_hint.reason == "no_match"` → 提示用户按 suggestion 调整查询，**不要重试相同参数**。
 
+⚠️ **query_aggregated_sentiment 例外（实测 2026-09-04）**：0 命中时**不返 `_hint`**，而是返回 `total_videos: 0` + 空 `weekly_distribution: {}` 的静默空结果。LLM 拿到空 sentiment 后的正确降级路径：
+
+1. 放宽/去掉 `date_from`/`date_to`（不传 = 全量时间窗）重试 1 次
+2. 仍为空 → 降级调 `query_blogger_opinions(keyword=...)` 拉原始视频列表，由 LLM 自行归纳多空观点
+3. 告诉用户"该关键词暂无聚合多空数据"，不要编造多空比
+
 ### 3.6 高级 tool 何时用（决策细化）
 
 | 场景 | 推荐 tool | 原因 |
@@ -199,8 +256,8 @@ LLM 看到 `_hint.reason == "no_match"` → 提示用户按 suggestion 调整查
 | 用户问"这条视频说的啥"（已知 aweme_id） | `query_real_desc_text` | 14 字段全量，比 query_video_list 字段更多（含 analysis_framework） |
 | 用户问"这视频哪几维命中" | `query_dimension_levels` | 带 level 0/1/2 档位 + label 翻译，LLM 不用自己算分 |
 | 用户问"这视频转录讲了哪些标的" | `query_transcript_keywords` | 5 类分析（含 NER 实体 + 摘要 prompt），省 LLM 自己跑 NER |
-| 用户问"30 天对中际旭创多空比" | `query_aggregated_sentiment` | 直接返 bull/bear/neutral 计数 + 拐点，省 LLM 自己归纳 |
-| 用户问"模型先生活跃度怎么样" | `query_creator_meta` | 一次性返 stats + activity_score，不烧多调配额 |
+| 用户问"30 天对中际旭创多空比" | `query_aggregated_sentiment` | 返周/月桶计数 + 拐点省归纳；⚠️ 空结果无 _hint，需降级 query_blogger_opinions（见 §3.5） |
+| 用户问"模型先生活跃度怎么样" | `query_creator_meta` | 一次性返 stats 10 字段（更新频率/影响力），不烧多调配额 |
 | 用户问"最近一周平台在聊啥" | `query_trending_keywords` | days=7 默认 + top_n=50，3 类词（top/new/rising）一次到位 |
 | 用户问"XX 最近 30 天怎么说" | `query_blogger_opinions`（基础） | 时间线聚合 + dialectics_tags，够用 |
 
@@ -427,7 +484,7 @@ MCP 11 tool 不提供实时行情数据。
 
 **LLM 行为**（v1.1.0 灵活模式）：
 1. 触发 skill 加载
-2. 匹配决策树 → `query_blogger_opinions(keyword="中际旭创", date_from=-30d, date_to=今天, limit=10)`
+2. 匹配决策树 → `query_blogger_opinions(keyword="中际旭创", date_from=-30d, date_to=今天, limit=20)`
 3. 拼 4 件套 system prompt（含 `_DIALECTICS_META_PROMPT` + 8 维 + 风险词 + 合规硬闸）
 4. 输出**灵活模式** 3 段式（用户没说"详细"，默认走灵活模式省 token）
 
@@ -456,7 +513,7 @@ MCP 11 tool 不提供实时行情数据。
 
 **用户**：「模型先生，这条视频（aweme_id=7677520767986234289）讲的啥？」
 
-**LLM 行为**：直接调 `query_real_desc_text(aweme_id="7677520767986234289")`（省去先 query_video_list 拿 id 的中间步）
+**LLM 行为**：直接调 `query_real_desc_text(aweme_id="7677520767986234289")`（aweme_id 传 **string 带引号**，省去先 query_video_list 拿 id 的中间步）
 
 **返回 dict**（14 字段）：
 - `aweme_id` / `desc_text` / `create_time` / `create_time_str`
@@ -468,18 +525,18 @@ MCP 11 tool 不提供实时行情数据。
 
 **用户**：「模型先生，30 天对中际旭创多空比多少？」
 
-**LLM 行为**：调 `query_aggregated_sentiment(keyword="中际旭创", date_from=-30d, granularity=weekly)`
+**LLM 行为**：调 `query_aggregated_sentiment(keyword="中际旭创", date_from="2026-08-05", date_to="2026-09-04", granularity="weekly")`（**显式传时间窗**，不传默认全量易空结果）
 
-**返回 dict 关键字段**：
-- `total_videos` / `bull_count` / `bear_count` / `neutral_count` / `bull_bear_ratio`
-- `weekly_distribution`（双轨 weekly/monthly）
-- `top_bull_quotes`（TOP 3 多头 30 字 snippet）
-- `top_bear_quotes`（TOP 3 空头 30 字 snippet）
-- `trend_inflection_points`（拐点检测）
+**返回 dict 实测字段（2026-09-04）**：
+- `keyword` / `granularity` / `date_from` / `date_to` / `total_videos`
+- `neutral_count`（中性计数）
+- `weekly_distribution`（桶结构：`{"2026-W35": {"neutral": 0, "videos": 1}}`；monthly 时为 `monthly_distribution`）
+- `trend_inflection_points`（拐点列表）
+- ⚠️ **当前版本不返回** `bull_count` / `bear_count` / `bull_bear_ratio` / `top_bull_quotes` / `top_bear_quotes` 字段（多空分桶依赖服务端词典命中，未命中视频只进 `videos` 计数）；多空对比由 LLM 基于视频内容自行归纳
 
 **LLM 输出要点**：
-- 多空比 = bull_count / bear_count
-- 拐点 = inflection_points 列表（日期 + 方向反转描述）
+- 按桶计数描述趋势走向（如"W32 中性 1 条 → W35 多头为主"），拐点列表如实转述
+- 0 命中（空 `weekly_distribution`）→ 走 §3.5 降级路径
 - ⚠️ **不替用户做对错判断**，只罗列数据 + 拐点
 
 #### 6.2.3 query_dimension_levels（8 维档位 0/1/2）
@@ -514,13 +571,13 @@ MCP 11 tool 不提供实时行情数据。
 
 **LLM 行为**：调 `query_creator_meta()`（默认唯一博主"模型先生"）
 
-**返回 dict 关键字段**：
+**返回 dict 关键字段（实测 2026-09-04）**：
 - `sec_uid` / `author_nickname` / `stats`
   - stats: `total_videos` / `videos_last_30d` / `videos_last_7d`
   - `total_digg` / `total_comment` / `total_share`
   - `avg_duration_sec` / `max_gap_days`
-  - `first_video_at` / `last_video_at`
-- `activity_score`（v1 简单公式：`videos_last_30d / 30` 归一化 0-1）
+  - `first_video_at` / `last_video_at`（**epoch 秒**，非日期字符串）
+- ⚠️ 当前版本**不透出** `activity_score` 字段（活跃度评分待主人拍权重后上线），判断活跃度用 `videos_last_30d` / `max_gap_days` 自行归纳
 
 #### 6.2.6 query_trending_keywords（平台热词）
 
@@ -528,11 +585,11 @@ MCP 11 tool 不提供实时行情数据。
 
 **LLM 行为**：调 `query_trending_keywords(days=7, top_n=50, sort_by=videos)`
 
-**返回 dict 关键字段**：
+**返回 dict 关键字段（实测 2026-09-04）**：
 - `window: {days, from, to}`
-- `top_keywords`（当前窗口热词）
-- `new_keywords`（本窗口新出现词）
-- `rising_keywords`（环比增长率 > 1.5）
+- `top_keywords`（当前窗口热词，元素为 `{word, videos, total_digg, total_comment}` dict）
+- `new_keywords`（本窗口新出现词，元素为 `{word, videos, total_digg}` dict）
+- `rising_keywords`（环比增长 > 1.5，元素为 `{word, current_videos, prev_videos, growth_ratio}` dict）
 
 #### 6.2.7 范本：3 tool 组合（v1.1.0 推荐范式）
 
@@ -543,7 +600,7 @@ MCP 11 tool 不提供实时行情数据。
 2. 取最热 1 个 video 的 aweme_id → `query_dimension_levels(aweme_id=...)` → 8 维档位
 3. （可选）`query_transcript_keywords(aweme_id=...)` → 转录 5 类分析（cost=2，看配额）
 
-**总配额成本**：1 (基础) + 2 (sentiment) + 1 (dimensions) = 4 次，**比 5 基础 tool 的 N 次联调省得多**
+**总配额成本**：2 (sentiment) + 1 (dimensions) = 3 quota（可选加转录分析 +2），**比 5 基础 tool 的 N 次联调省得多**
 
 ### 6.3 0 命中范本
 
@@ -585,13 +642,13 @@ MCP 11 tool 不提供实时行情数据。
 ```json
 {
   "name": "mr-model",
-  "version": "1.3.0",
+  "version": "1.3.3",
   "min_mcp_server_version": "326",
   "skill_md_sha256": "<sha256-of-this-file>",
   "skill_md_url": "https://cdn.jsdelivr.net/gh/Cesario-Lzc/M-Model@main/SKILL.md",
   "manifest_url": "https://cdn.jsdelivr.net/gh/Cesario-Lzc/M-Model@main/manifest.json",
-  "updated_at": "2026-09-03T...Z",
-  "changelog": "v1.3.0: token 注册即有 — 1 人 1 token 免申请，明文随时在 mcp-tokens 页查看/复制，泄露点「重置」即换新（旧 token 立即失效）"
+  "updated_at": "2026-09-04T...Z",
+  "changelog": "v1.3.3: 生产实测校准 — 连通性 curl 补 CF 必需头(UA/Accept) + SSE data: 解析, content[] 多 item 解析教学, 参数默认值对齐 server schema(全 20), sentiment/creator_meta 幻影字段清理, 附录 A 全量真机重测(2026-09-04)"
 }
 ```
 
@@ -767,21 +824,23 @@ cp ~/.claude/skills/mr-model/manifest.json ~/.claude/skills/mr-model/
 
 ---
 
-## 附录 A：11 tool 输出结构参考（实测 2026-08-27）
+## 附录 A：11 tool 输出结构参考（实测 2026-09-04，生产环境真机采样）
 
-### A.1 通用顶层字段（5 基础 video 类 tool 共有）
+> **数据免责声明**：本平台数据来自第三方博主公开视频内容的采集聚合，可能存在采集延迟、字段缺失或博主主观表述偏差；本附录结构以 2026-09-04 生产实测为准，服务端升级后以 `tools/list` 实际返回为准。
+
+### A.1 通用顶层字段（query_video_list / search_videos / query_blogger_opinions / search_video_transcripts 单条共有）
 
 ```json
 {
-  "aweme_id": "v_id_xxx",                 // 抖音视频唯一 ID（query_comments 时是入参回显）
+  "aweme_id": "7681209106778645105",       // 抖音视频唯一 ID（**string 类型**，客户端存储时保留引号）
   "desc_text": "...",                      // 视频简介（占位符时会有 _desc_note）
-  "create_time": 1787562102,               // epoch 秒
-  "create_time_str": "2026-08-24 17:01",   // CST 字符串
-  "duration": 47.4,                        // 视频时长（秒）
-  "statistics": {"digg_count": 7131, "comment_count": 1315, "share_count": 612, "play_count": 0, "collect_count": 793},
-  "tags": ["综合"],                        // 平台采集标签（空时 L1 词典兜底打）
+  "create_time": 1788420861,               // epoch 秒
+  "create_time_str": "2026-09-03 15:34",   // CST 字符串
+  "duration": 85.5,                        // 视频时长（秒，float）
+  "statistics": {"digg_count": 8868, "comment_count": 1458, "share_count": 921, "play_count": 0, "collect_count": 670},
+  "tags": ["随拍", "生活记录", "日常vlog"],  // 平台采集标签
   "content_type": "video",
-  "author_nickname": "模型先生",           // 博主名（v316 update 唯一在网博主）
+  "author_nickname": "模型先生",           // 博主名（当前唯一在网博主）
   "author_sec_uid": "MS4wLjABAAAA...",     // 抖音 sec_uid
   "_desc_note": "original_desc_is_placeholder_fallback_summary_used",  // 仅占位符时出现
   "dialectics_tags": ["综合"],             // 辩证维度标签（兜底['综合'] 8 维各 0.5）
@@ -794,6 +853,8 @@ cp ~/.claude/skills/mr-model/manifest.json ~/.claude/skills/mr-model/
     "情绪类": {"score": 0.5, ...},
     "策略类": {"score": 0.5, ...},
     "择时类": {"score": 0.5, ...}
+    // ⚠️ 注意：这 4 个 tool 里的单维只有 4 键（score/description/suggested_data_sources/analysis_steps），
+    //    level + label 两键只在 query_dimension_levels 里才出现（见 A.3.2）
   },
   "analysis_framework": {                  // 第四层（v316）：辩证元框架 + 风险词 + 三时段 + 用法
     "dialectics_meta_prompt": "当你分析一条 A 股财经观点时...",
@@ -801,27 +862,32 @@ cp ~/.claude/skills/mr-model/manifest.json ~/.claude/skills/mr-model/
     "time_horizon_template": {"short_term": {...}, "mid_term": {...}, "long_term": {...}},
     "usage_hint": "客户端 LLM 使用方法：1. 将 dialectics_meta_prompt 作为 system prompt 的一部分 ..."
   },
-  "_meta": {"quota_cost": 1, "quota_remaining": 999},   // 配额扣费信息
+  "_meta": {"quota_cost": 1, "quota_remaining": 809},   // quota_cost 可信；quota_remaining 当前版本不可靠（见 §3.3 第 7 条）
   "_tx_id": "uuid4-xxxx"                                    // M3 注入追踪 ID
 }
 ```
 
-### A.2 特殊：query_comments 聚合统计视图
+### A.2 特殊：query_comments 聚合统计视图（实测）
 
 ```json
 {
-  "aweme_id": "7677520767986234289",
-  "total_comments": 1315,       // 评论总数
-  "total_digg": 8523,           // 评论点赞总数
-  "avg_digg": 6.5,              // 平均点赞
-  "max_digg": 487,              // 最高点赞
-  "time_earliest": "2026-08-24T17:30",   // 最早评论时间
-  "time_latest": "2026-08-25T18:45",     // 最晚评论时间
-  "top_keywords": ["光模块", "国产替代", "..."],   // 关键词 TOP 10
-  "_meta": {"quota_cost": 1, "quota_remaining": 998},
-  "_tx_id": "cb13a820-..."
+  "aweme_id": "7681209106778645105",
+  "total_comments": 1453,       // 评论总数（单视频上限 5000 条样本）
+  "total_digg": 2084,           // 评论点赞总数
+  "avg_digg": 1.43,             // 平均点赞（float）
+  "max_digg": 410,              // 最高点赞
+  "time_earliest": 1788420936,  // ⚠️ epoch 秒（非 ISO 字符串）
+  "time_latest": 1788506176,    // ⚠️ epoch 秒（非 ISO 字符串）
+  "top_keywords": [             // ⚠️ [词, 频次] 二元组数组（非字符串数组），jieba 中文分词 TOP 10
+    ["先生", 278], ["捂脸", 196], ["科技", 124], ["流泪", 97], ["开学", 66],
+    ["视频", 65], ["行情", 64], ["玫瑰", 60], ["大哥", 59], ["调整", 57]
+  ],
+  "_meta": {"quota_cost": 1},
+  "_tx_id": "9d7805fa-..."
 }
 ```
+
+> top_keywords 含表情词/语气词属正常现象（UGC 词频中性统计），LLM 展示时自行过滤噪声词。
 
 ### A.3 高级 tool 输出结构（v1.1.0 新增）
 
@@ -829,7 +895,7 @@ cp ~/.claude/skills/mr-model/manifest.json ~/.claude/skills/mr-model/
 
 返回结构同 A.1（14 字段全量，dict 形态），但保证 `desc_text` 是原始完整 desc_text（不是占位符），`_desc_note` 标记透出。
 
-#### A.3.2 query_dimension_levels
+#### A.3.2 query_dimension_levels（实测）
 
 ```json
 {
@@ -839,93 +905,99 @@ cp ~/.claude/skills/mr-model/manifest.json ~/.claude/skills/mr-model/
     "估值类": {"score": 0.5, "description": "...", "suggested_data_sources": [...], "analysis_steps": [...], "level": 1, "label": "中性"},
     "趋势类": {"score": 0.8, "level": 2, "label": "强信号", ...},
     ... 8 维
+    // ⚠️ 与 A.1 不同：本 tool 的单维多 level + label 两键（6 键）
   },
   "_meta": {...},
   "_tx_id": "..."
 }
 ```
 
-#### A.3.3 query_transcript_keywords
+#### A.3.3 query_transcript_keywords（实测）
 
 ```json
 {
   "aweme_id": "...",
-  "word_freq": [{"word": "光模块", "freq": 12}, ...],  // Top50
+  "word_freq": [{"word": "这个", "weight": 0.2942}, {"word": "车店", "weight": 0.2465}],  // ⚠️ 键是 weight（TF-IDF 权重）非 freq；Top50
   "entities": {
-    "stock": [{"name": "中际旭创", "count": 3}, ...],
-    "concept": [{"name": "CPO", "count": 5}, ...],
-    "kol": [{"name": "某 KOL", "count": 2}, ...]
+    "stock": [], "concept": [], "kol": [],        // v1 词典匹配未命中时为空数组
+    "_ner_engine": "dict_match_v1",                // 引擎标识
+    "_recall_warning": "v1 词典覆盖 30 主流股 + 200 概念 + 50 KOL..."  // ⚠️ 漏召回警告在 entities 内部（非顶级）
   },
-  "pos_distribution": {"n": 50, "v": 30, ...},  // 词性分布
-  "key_sentences": ["...", "..."],  // Top5
-  "transcript_summary_prompt": "请基于以下转录...",  // 给客户端 LLM 加工
-  "_recall_warning": "v1 词典匹配, 漏召回已知",  // 仅当 NER 漏召回时出现
+  "pos_distribution": {"v": 39, "n": 25, "zg": 8, "x": 31, "m": 11},  // 词性标记→次数（jieba 词性符号）
+  "key_sentences": ["他终于他把钱付完以后...", "..."],  // ⚠️ 纯字符串数组（非对象），Top5 按关键词命中排序
+  "transcript_summary_prompt": "请用 200-500 字总结以下视频转录的关键论点，按 4 段式输出：...",  // 拼好给客户端 LLM 加工
   "_meta": {"quota_cost": 2},
   "_tx_id": "..."
 }
 ```
 
-#### A.3.4 query_aggregated_sentiment
+#### A.3.4 query_aggregated_sentiment（实测）
 
 ```json
 {
-  "keyword": "中际旭创",
+  "keyword": "光模块",
   "granularity": "weekly",
-  "date_from": "2026-07-28",
-  "date_to": "2026-08-27",
-  "total_videos": 12,
-  "bull_count": 7,
-  "bear_count": 3,
-  "neutral_count": 2,
-  "bull_bear_ratio": 2.33,
-  "distribution": {"weekly_distribution": [...]},  // 或 monthly_distribution
-  "top_bull_quotes": ["snippet1", "snippet2", "snippet3"],
-  "top_bear_quotes": ["snippet1", "snippet2", "snippet3"],
-  "trend_inflection_points": [{"date": "2026-08-15", "from": "bull", "to": "neutral"}],
+  "date_from": "2026-08-05",
+  "date_to": "2026-09-04",
+  "total_videos": 1,
+  "neutral_count": 1,
+  "weekly_distribution": {"2026-W32": {"neutral": 1, "videos": 1}},  // 桶键=ISO 周/月；桶内=分类计数+videos 总数
+  "trend_inflection_points": [],   // 多空净差符号变化处（无拐点时空数组）
   "_meta": {"quota_cost": 2},
   "_tx_id": "..."
 }
 ```
 
-#### A.3.5 query_creator_meta
+⚠️ **当前版本不返回** `bull_count` / `bear_count` / `bull_bear_ratio` / `top_bull_quotes` / `top_bear_quotes`（服务端词典未命中多空词时视频只计入 `videos`，多空计数随词典命中动态出现）；多空对比由客户端 LLM 自行归纳。0 命中时 `weekly_distribution: {}`（无 `_hint`，降级路径见 §3.5）。
+
+#### A.3.5 query_creator_meta（实测）
 
 ```json
 {
   "sec_uid": "MS4wLjABAAAA...",
   "author_nickname": "模型先生",
   "stats": {
-    "total_videos": 487,
-    "videos_last_30d": 28,
-    "videos_last_7d": 6,
-    "total_digg": 1234567,
-    "total_comment": 234567,
-    "total_share": 12345,
-    "avg_duration_sec": 47.4,
-    "max_gap_days": 7,
-    "first_video_at": "2023-05-01",
-    "last_video_at": "2026-08-26"
+    "total_videos": 503,
+    "videos_last_30d": 21,
+    "videos_last_7d": 4,
+    "total_digg": 3183692,
+    "total_comment": 460518,
+    "total_share": 655867,
+    "avg_duration_sec": 70.25,
+    "max_gap_days": 71.08,
+    "first_video_at": 1660542235,   // ⚠️ epoch 秒（非日期字符串）
+    "last_video_at": 1788420861
   },
-  "activity_score": 0.93,  // videos_last_30d / 30
-  "_activity_score_formula": "v1: videos_last_30d / 30 归一化 0-1",
   "_meta": {"quota_cost": 1},
   "_tx_id": "..."
 }
 ```
 
-#### A.3.6 query_trending_keywords
+⚠️ 当前版本不透出 `activity_score` 字段（活跃度评分待权重定版后上线）。
+
+#### A.3.6 query_trending_keywords（实测）
 
 ```json
 {
-  "window": {"days": 7, "from": "2026-08-21", "to": "2026-08-27"},
-  "top_keywords": [{"word": "光模块", "videos": 12, "digg": 5000}, ...],
-  "new_keywords": ["新词1", "新词2", ...],  // 本窗口新出现
-  "rising_keywords": [{"word": "CPO", "growth_rate": 2.5}, ...],  // 环比 > 1.5
+  "window": {"days": 7, "from": "2026-08-28", "to": "2026-09-04"},
+  "sort_by": "videos",
+  "top_keywords": [   // ⚠️ dict 数组（非字符串数组），statistics 加权
+    {"word": "光模块", "videos": 12, "total_digg": 5000, "total_comment": 800},
+    ...
+  ],
+  "new_keywords": [   // ⚠️ dict 数组（非字符串数组），本窗口新出现
+    {"word": "新词1", "videos": 2, "total_digg": 100},
+    ...
+  ],
+  "rising_keywords": [   // ⚠️ 键名 growth_ratio（非 growth_rate），环比 > 1.5
+    {"word": "CPO", "current_videos": 3, "prev_videos": 1, "growth_ratio": 3.0}
+  ],
   "_meta": {"quota_cost": 2},
   "_tx_id": "..."
 }
 ```
 
-### A.4 0 命中格式（5 tool + 6 高级 tool 共有）
+### A.4 0 命中格式（仅 query_blogger_opinions / search_videos 返 `_hint`）
 
 ```json
 {
@@ -938,7 +1010,23 @@ cp ~/.claude/skills/mr-model/manifest.json ~/.claude/skills/mr-model/
 }
 ```
 
+其余 tool 0 命中行为（实测 2026-09-04）：
+- `query_aggregated_sentiment` → 空桶 `{"total_videos": 0, "weekly_distribution": {}}`，**无 _hint**（降级见 §3.5）
+- `search_video_transcripts` → 空 content list（0 条 item）
+- `query_comments` / `query_real_desc_text` / `query_dimension_levels` / `query_transcript_keywords` → 传不存在的 aweme_id 返 error dict（带 hint）
+- `query_creator_meta` / `query_trending_keywords` → 恒有数据（不依赖关键词命中）
+
 ## 附录 B：变更日志
+
+- **v1.3.3** (2026-09-04) — 生产实测校准（60 测试点全量 E2E 后修正）
+  - 🔴 §2.3 连通性 curl 补 CF 必需头（User-Agent + Accept: text/event-stream，缺失实测 403/406 必失败）+ SSE `data:` 行解析说明 + 一行提取 tool 名命令
+  - 🔴 §3.2 新增「JSON-RPC content 多 item 解析」教学：list[dict] 返回被 FastMCP 拆成 N 条 content item，客户端必须遍历 `result.content[]` 逐条 json.loads（最易踩坑）
+  - 🔴 附录 A 全量真机重测（2026-09-04 生产采样）：comments 时间戳 epoch 秒 + top_keywords 二元组数组、tkw word_freq 键 weight + entities 内含 _ner_engine/_recall_warning、sentiment 实际字段（不返 bull/bear 计数与 quotes）、creator_meta 不透出 activity_score + 时间 epoch 秒、trending 三类词 dict 形态 + growth_ratio 键名、video 类 tool 单维 4 键 vs dimension_levels 单维 6 键（level/label）
+  - 🟠 §3.2/§3.3/§3.1 参数默认值对齐 server schema（search_videos page_size=20 / query_blogger_opinions limit=20 / search_video_transcripts limit=20，配额示例数字连带修正）；删除 query_comments 幻影 `limit` 参数
+  - 🟠 §3.5/§6.2.2 sentiment 0 命中行为修正：返空 weekly_distribution 无 _hint，补 LLM 降级路径（先放宽时间窗 → 降级 query_blogger_opinions 自行归纳）
+  - 🟠 §3.3 第 7 条 quota_remaining 不可靠警告（实测恒定不递减，余量以官网 mcp-tokens 页为准）
+  - 🟡 版本号三处对齐（frontmatter 1.3.3 / manifest 1.3.3 / README 徽章 1.3.3）；aweme_id 强调 string 带引号；§2.3 补传输层无状态说明（无 Mcp-Session-Id，initialize 可选）
+  - 附录 A 头部补数据免责声明（第三方采集延迟/缺失/主观偏差提示）
 
 - **v1.3.2** (2026-09-03) — 终身体验额度 + 话术升级
   - 配额语义治本：**20 quota = 终身体验额度（一次性赠送，不按月重置）**，修正「30 天窗口自动重置」旧表述；ProMax 1000 quota / 30 天滚动窗口不变（本期用尽等本期结束自动重置）

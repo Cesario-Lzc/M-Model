@@ -1,6 +1,6 @@
 # M-Model — A 股财经视频 MCP 调用框架
 
-[![Version](https://img.shields.io/badge/version-1.3.1-blue.svg)](https://github.com/Cesario-Lzc/M-Model)
+[![Version](https://img.shields.io/badge/version-1.3.3-blue.svg)](https://github.com/Cesario-Lzc/M-Model)
 [![MCP Server](https://img.shields.io/badge/MCP-11_tools-green.svg)](https://mcp.cesario.top)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey.svg)](#license)
 
@@ -23,25 +23,25 @@ curl -sL https://cdn.jsdelivr.net/gh/Cesario-Lzc/M-Model@main/scripts/install-mr
 | 能力 | 工具 | 输入 | 输出示例 |
 |------|------|------|----------|
 | 视频列表 | `query_video_list` | `page=1, page_size=20` | 20 条 video 元信息（按时间倒序） |
-| 关键词搜视频 | `search_videos` | `query="中际旭创"` | 10 条命中视频 desc |
-| 博主观点时间线 | `query_blogger_opinions` | `keyword="贵州茅台", limit=10` | 10 条视频的 8 维框架 + dialectics_tags |
-| 转录片段搜 | `search_video_transcripts` | `keyword="光模块", limit=5` | 5 段 30 字 snippet（含前后文） |
-| 评论聚合 | `query_comments` | `aweme_id=7412345678` | `{total, avg_digg, top_keywords: [...]}` |
-| 单视频全字段 | `query_real_desc_text` | `aweme_id=7412345678` | 14 字段全量 + `analysis_framework` |
-| 8 维档位 | `query_dimension_levels` | `aweme_id=7412345678` | 8 维 × {level 0/1/2 + label} |
-| 转录 5 类分析 | `query_transcript_keywords` | `aweme_id=7412345678` | 词频 Top50 + NER + 词性 + 关键句 + 摘要 prompt |
-| 多空情绪聚合 | `query_aggregated_sentiment` | `keyword="贵州茅台", granularity=weekly` | `{bull:8, bear:3, ratio:2.67, 拐点: [W23]}` |
-| 博主 meta | `query_creator_meta` | `sec_uid` 可选 | `{total_videos: 850, activity_score: 0.92}` |
+| 关键词搜视频 | `search_videos` | `query="中际旭创"` | 20 条命中视频 desc |
+| 博主观点时间线 | `query_blogger_opinions` | `keyword="贵州茅台", limit=20` | 20 条视频的 8 维框架 + dialectics_tags |
+| 转录片段搜 | `search_video_transcripts` | `keyword="光模块", limit=20` | 20 段转录 snippet（≤65 字含前后文） |
+| 评论聚合 | `query_comments` | `aweme_id="7412345678"` | `{total, avg_digg, top_keywords: [...]}` |
+| 单视频全字段 | `query_real_desc_text` | `aweme_id="7412345678"` | 14 字段全量 + `analysis_framework` |
+| 8 维档位 | `query_dimension_levels` | `aweme_id="7412345678"` | 8 维 × {level 0/1/2 + label} |
+| 转录 5 类分析 | `query_transcript_keywords` | `aweme_id="7412345678"` | 词频 Top50 + NER + 词性 + 关键句 + 摘要 prompt |
+| 多空情绪聚合 | `query_aggregated_sentiment` | `keyword="贵州茅台", granularity=weekly` | `{total_videos, neutral_count, weekly_distribution, 拐点}` |
+| 博主 meta | `query_creator_meta` | `sec_uid` 可选 | `{total_videos: 503, videos_last_30d: 21, ...}` |
 | 平台热词 | `query_trending_keywords` | `days=7, top_n=50` | 50 词 × {top/new/rising} |
 
-**调用事例**（3 工具组合范式，成本 4 次 vs N 次联调）：
+**调用事例**（3 工具组合范式，总 8 quota vs 多 tool 联调）：
 
 ```python
 # 用户问"贵州茅台最近 30 天怎么说"
-# 1) 时间线聚合（cost=3）
-opinions = call("query_blogger_opinions", keyword="贵州茅台", date_from="2026-07-28", limit=20)
-# 2) 多空情绪 + 拐点（cost=2）
-sentiment = call("query_aggregated_sentiment", keyword="贵州茅台", granularity="weekly")
+# 1) 时间线聚合（cost=4）
+opinions = call("query_blogger_opinions", keyword="贵州茅台", date_from="2026-08-05", date_to="2026-09-04", limit=20)
+# 2) 多空情绪 + 拐点（cost=2，显式传时间窗防空结果）
+sentiment = call("query_aggregated_sentiment", keyword="贵州茅台", date_from="2026-08-05", date_to="2026-09-04", granularity="weekly")
 # 3) 平台热词看大市风向（cost=2）
 trending = call("query_trending_keywords", days=7, top_n=20)
 # → 客户端 LLM 拼 3 段式 + 11 字段 DIA 块（详 SKILL.md §4.2）
@@ -57,9 +57,9 @@ trending = call("query_trending_keywords", days=7, top_n=20)
 | Tool | base | per×N | 默认值成本 |
 |------|------|-------|-----------|
 | `query_video_list` | 1 | 0.1×N | page_size=20 → **3 quota** |
-| `search_videos` | 1 | 0.1×N | page_size=10 → **2 quota** |
-| `query_blogger_opinions` | 2 | 0.1×N | limit=10 → **3 quota** |
-| `search_video_transcripts` | 2 | 0.05×N | limit=5 → **3 quota** |
+| `search_videos` | 1 | 0.1×N | page_size=20 → **3 quota** |
+| `query_blogger_opinions` | 2 | 0.1×N | limit=20 → **4 quota** |
+| `search_video_transcripts` | 2 | 0.05×N | limit=20 → **3 quota** |
 | `query_comments` | 1 | 0（dict 聚合） | 1 aweme_id → **1 quota** |
 
 ### 6 高级 tool（per_row=0，dict 返回走 base）
