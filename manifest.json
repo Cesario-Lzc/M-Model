@@ -1,0 +1,16 @@
+{
+  "name": "mr-model",
+  "version": "1.4.1",
+  "min_mcp_server_version": "326",
+  "skill_md_sha256": "cb5006c8b44778dc1459e1b955c1cd5c56c3a7044d09bac16d171cbab242fe0a",
+  "skill_md_url": "https://raw.githubusercontent.com/Cesario-Lzc/M-Model/main/SKILL.md",
+  "manifest_url": "https://raw.githubusercontent.com/Cesario-Lzc/M-Model/main/manifest.json",
+  "updated_at": "2026-09-08T11:06:12+08:00",
+  "changelog": "v1.4.1: query_stock_opinions description 补「建议同步传行业/概念等关键词」，_hint.suggestion 改为诚实性建议；SKILL.md 去除 a-stock-data 行情推荐，改为「建议接入腾讯/新浪等公开行情接口」；§7.2 检查流程改为「授权后静默更新」：用户授权一次后后续版本自动覆盖，永久不弹二次确认。v1.4.0 护城河治理版: 17 tool(+6 功能 tool: query_quota/check_new_video/watchlist_set/watchlist_get/query_stock_opinions/get_daily_digest, 前 3 个免费), query_video_list 增量三参(date_from/date_to/since_id), query_comments TOP5 脱敏热评(include_samples), sentiment 字段 long/short 透出, 泄露面收敛(analysis_framework/方法论模板全线下线, LLM 基于事实数据自行组织分析); v319 服务端版本闸门: 靠请求头 X-Skill-Version 识别客户端版本, 2026-09-22 起低于 v1.4.0 的客户端 426 硬拒 (install 脚本会自动写入该头)",
+  "capabilities": {
+    "network_egress": "mcp.cesario.top (MCP API) + raw.githubusercontent.com / cdn.jsdelivr.net (拉取更新)",
+    "files_written": "~/.claude/skills/mr-model/ (或 MRMODEL_SKILL_DIR) + ~/.config/mrmodel/token",
+    "shell_exec": false,
+    "auto_update": "silent_after_auth"
+  }
+}
