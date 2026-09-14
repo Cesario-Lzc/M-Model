@@ -2,7 +2,7 @@
 name: mr-model
 description: 「模型先生」+ 任何问题（博主观点/视频检索/评论热词/最近 30 天对个股怎么看/每日晨报/结构化观点追踪）→ 触发本 skill。内部按 15 tool 决策树调用 https://mcp.cesario.top（5 基础 tool + 6 高级 tool + 4 功能 tool：query_video_list / search_videos / query_blogger_opinions / search_video_transcripts / query_comments / query_real_desc_text / query_dimension_levels / query_transcript_keywords / query_aggregated_sentiment / query_creator_meta / query_trending_keywords / query_quota / check_new_video / query_stock_opinions / get_daily_digest），用 mcp_tokens Bearer 鉴权。输出两种模式：① 灵活模式（短问答/快查，简明扼要）② 详细模式（深度分析，可多空对照 + 分时段）。分析思路由客户端 LLM 基于事实数据自行组织（服务端只返事实数据，不下发任何分析框架/方法论字段）。建议结合您自行接入的行情数据源（公开行情接口 / 自有行情 skill）以获得「观点 + 价格」的更完整分析。需先设置 MR_MCP_TOKEN 环境变量或 ~/.config/mrmodel/token 文件。懒校验、不烧配额、version 比对式自更新。
 origin: custom
-version: 1.4.6
+version: 1.4.7
 ---
 
 # mrmodel-skill — mr-model MCP 调用框架
@@ -176,10 +176,10 @@ curl -s -X POST https://mcp.cesario.top/mcp \
 | Tool | 必填 | 关键可选 | 默认值 | 配额成本 (quota) | 返回类型 |
 |------|------|----------|--------|------------------|----------|
 | `query_video_list` | — | `page`, `page_size` (≤20), `date_from`/`date_to` (YYYY-MM-DD), `since_id` (增量游标) | page=1, page_size=20 | base=1, per=0.1×N（page_size=20 → 3） | **list[dict]**（单条 video 全字段） |
-| `search_videos` | `query` (≥2字, 空格分隔多词 OR ≤10，v1.4.6) | `page`, `page_size` (≤20) | page=1, page_size=20 | base=1, per=0.1×N（page_size=20 → 3；多词不加价，按合并去重后实际行数计） | **list[dict]**（0 命中时返 `_hint` dict） |
-| `query_blogger_opinions` | `keyword` (≥2字, 空格分隔多词 OR ≤10，v1.4.6) | `date_from`, `date_to`, `limit` (1-20) | limit=20 | base=2, per=0.1×N（limit=20 → 4；多词不加价，按合并去重后实际行数计） | **list[dict]**（0 命中时 `_hint.reason=no_match`） |
+| `search_videos` | `query` (≥1字, 空格分隔多词 OR ≤10，v1.4.6) | `page`, `page_size` (≤20) | page=1, page_size=20 | base=1, per=0.1×N（page_size=20 → 3；多词不加价，按合并去重后实际行数计） | **list[dict]**（0 命中时返 `_hint` dict） |
+| `query_blogger_opinions` | `keyword` (≥1字, 空格分隔多词 OR ≤10，v1.4.6) | `date_from`, `date_to`, `limit` (1-20) | limit=20 | base=2, per=0.1×N（limit=20 → 4；多词不加价，按合并去重后实际行数计） | **list[dict]**（0 命中时 `_hint.reason=no_match`） |
 | `search_video_transcripts` | `keyword` | `limit` (1-20) | limit=20 | base=2, per=0.05×N（limit=20 → 3） | **list[dict]**（含转录 snippet ≤65 字） |
-| `query_comments` | `aweme_id` | `include_samples` (true=返 TOP5 脱敏热评原文), `sample_size` (≤5) | include_samples=false | 1（dict 聚合，per_row 不计） | **dict 聚合**（total/avg_digg/max_digg/top_keywords + 可选 samples） |
+| `query_comments` | `aweme_id` | `include_samples` (true=返 TOP5 博主发言脱敏原文), `sample_size` (≤5) | include_samples=false | 1（dict 聚合，per_row 不计） | **dict 聚合**（total/avg_digg/max_digg/top_keywords=博主发言词频 + 可选 samples） |
 
 > 📌 `query_video_list` 增量三参（v1.4.0 新增）：`date_from`/`date_to` 按 CST 日界过滤；`since_id` 传已知最新 aweme_id 只返更新的视频（每日增量同步 1 次调用拿齐，不用全量翻页）。
 
@@ -192,7 +192,7 @@ curl -s -X POST https://mcp.cesario.top/mcp \
 | `query_real_desc_text` | `aweme_id` (18-20位) | — | — | 1 | **dict**（全字段：VIDEO_LIST_ALLOWLIST + dialectics_tags + framework_dimensions） |
 | `query_dimension_levels` | `aweme_id` | — | — | 1 | **dict**（8 维每维 level 0/1/2 + label 翻译 + 数据源 + 分析步骤） |
 | `query_transcript_keywords` | `aweme_id` | — | — | 2 | **dict**（5 类：词频 Top50 + NER + 词性 + 关键句 Top5 + 摘要 prompt） |
-| `query_aggregated_sentiment` | `keyword` (≥2字, 空格分隔多 keyword ≤10，v1.4.6) | `date_from`, `date_to`, `granularity` (weekly\|monthly) | granularity=weekly | 2（多 keyword = 2×N 组） | **dict**（单词：long/short/neutral 计数 + 周/月桶 + 拐点 + TOP 引文；**多 keyword：{keyword: 单词结构} 分组**；⚠️ 建议显式传时间窗） |
+| `query_aggregated_sentiment` | `keyword` (≥1字, 空格分隔多 keyword ≤10，v1.4.6) | `date_from`, `date_to`, `granularity` (weekly\|monthly) | granularity=weekly | 2（多 keyword = 2×N 组） | **dict**（单词：long/short/neutral 计数 + 周/月桶 + 拐点 + TOP 引文；**多 keyword：{keyword: 单词结构} 分组**；⚠️ 建议显式传时间窗） |
 | `query_creator_meta` | `sec_uid` (可选) | — | 当前唯一博主"模型先生" | 1 | **dict**（stats 10 字段：视频数/点赞/评论/分享/更新频率等） |
 | `query_trending_keywords` | — | `days` (1-30), `top_n` (10-100), `sort_by` (videos\|digg\|comment) | days=7, top_n=50, sort_by=videos | 2 | **dict**（窗口热词 + 新词 + 上升词） |
 

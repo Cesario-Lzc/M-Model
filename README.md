@@ -29,7 +29,7 @@ curl -sL https://raw.githubusercontent.com/Cesario-Lzc/M-Model/main/install-mrmo
 | 关键词搜视频 | `search_videos` | `query="光模块 CPO"`（多词 OR，v1.4.6） | 20 条命中视频 desc |
 | 博主观点时间线 | `query_blogger_opinions` | `keyword="贵州茅台 白酒", limit=20`（多词 OR，v1.4.6） | 20 条视频的 8 维框架 + dialectics_tags |
 | 转录片段搜 | `search_video_transcripts` | `keyword="光模块", limit=20` | 20 段转录 snippet（≤65 字含前后文） |
-| 评论聚合（可选热评原文） | `query_comments` | `aweme_id="..."`, `include_samples=true` | 聚合统计 + TOP5 脱敏热评 |
+| 博主发言聚合（可选原文） | `query_comments` | `aweme_id="..."`, `include_samples=true` | 博主本人发言统计 + TOP5 脱敏原文 |
 
 ### 6 高级 tool（单视频深挖/聚合/meta）
 
