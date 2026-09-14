@@ -1,8 +1,8 @@
 ---
 name: mr-model
-description: 「模型先生」+ 任何问题（博主观点/视频检索/评论热词/最近 30 天对个股怎么看/每日晨报/结构化观点追踪）→ 触发本 skill。内部按 15 tool 决策树调用 https://mcp.cesario.top（5 基础 tool + 6 高级 tool + 4 功能 tool：query_video_list / search_videos / query_blogger_opinions / search_video_transcripts / query_comments / query_real_desc_text / query_dimension_levels / query_transcript_keywords / query_aggregated_sentiment / query_creator_meta / query_trending_keywords / query_quota / check_new_video / query_stock_opinions / get_daily_digest），用 mcp_tokens Bearer 鉴权。输出两种模式：① 灵活模式（短问答/快查，简明扼要）② 详细模式（深度分析，可多空对照 + 分时段）。分析思路由客户端 LLM 基于事实数据自行组织（服务端只返事实数据，不下发任何分析框架/方法论字段）。建议结合您自行接入的行情数据源（公开行情接口 / 自有行情 skill）以获得「观点 + 价格」的更完整分析。需先设置 MR_MCP_TOKEN 环境变量或 ~/.config/mrmodel/token 文件。懒校验、不烧配额、version 比对式自更新。
+description: 「模型先生」+ 任何问题（博主观点/视频检索/最近 30 天对个股怎么看/每日晨报/持仓观点追踪/盘前盘后观点雷达/自选股轨迹/多标的对比）→ 触发本 skill。内部按 15 tool 决策树调用 https://mcp.cesario.top（5 基础 tool + 6 高级 tool + 4 功能 tool：query_video_list / search_videos / query_blogger_opinions / search_video_transcripts / query_comments / query_real_desc_text / query_dimension_levels / query_transcript_keywords / query_aggregated_sentiment / query_creator_meta / query_trending_keywords / query_quota / check_new_video / query_stock_opinions / get_daily_digest），用 mcp_tokens Bearer 鉴权。输出模式：① 灵活模式（短问答/快查，简明扼要）② 详细模式（深度分析，可多空对照 + 分时段）③ 观点雷达模式（§4.4 通用骨架：盘前/盘后/周报/单标的轨迹/多标的横向对比）+ 合规硬闸（禁个股买卖方向/仓位/价位）。分析思路由客户端 LLM 基于事实数据自行组织（服务端只返事实数据，不下发任何分析框架/方法论字段）。建议结合您自行接入的行情数据源（公开行情接口 / 自有行情 skill）以获得「观点 + 价格」的更完整分析。需先设置 MR_MCP_TOKEN 环境变量或 ~/.config/mrmodel/token 文件。懒校验、不烧配额、version 比对式自更新。
 origin: custom
-version: 1.4.7
+version: 1.5.0
 ---
 
 # mrmodel-skill — mr-model MCP 调用框架
@@ -127,6 +127,9 @@ curl -s -X POST https://mcp.cesario.top/mcp \
 ├─ 含"今天/昨天" + "有什么新观点/晨报/日报/总结一下"？
 │   └─ YES → get_daily_digest(date=昨天默认)  ← 功能 tool，8 quota 一次拿齐
 │            （当日新视频 + 多空方向 + 评论热词）
+├─ 含"盘前/盘后/雷达/观点汇总/自选股观点/持仓追踪"？
+│   └─ YES → **观点雷达模式**（见 §4.4：扩词硬闸→digest→转录分析→两层检索→8维指引→timeline 可视化）
+│            （⚠️ 走本分支必须先按 §4.4.2 完成标的扩词，检索调用只传裸股名 = 执行不完整）
 ├─ 含"XX（个股/板块）博主怎么看/观点变化/历次观点"？
 │   └─ YES → query_stock_opinions(symbol_or_name="中际旭创" 或 "300308", limit=20)  ← 功能 tool
 │            （结构化观点行直达：direction/validity/reasoning/viewpoint_date，比 query_blogger_opinions 更精准）
@@ -289,6 +292,8 @@ LLM 看到 `_hint.reason == "no_match"` → 提示用户按 suggestion 调整查
 | 场景 | 推荐 tool | 原因 |
 |------|----------|------|
 | 用户问"今天有什么新观点/晨报" | `get_daily_digest` | 一次拿齐：新视频 + 多空方向 + 评论热词 |
+| 用户问"盘前/盘后雷达/自选股观点汇总" | **观点雷达模式（§4.4）** | 通用骨架：扩词硬闸 + digest + 转录分析 + 两层检索 + 8 维框架指引 + timeline 可视化；盘后/周报/单标的/多标的对比同套流程换参数 |
+| **标的扩词检索**（观点雷达及任何个股检索前置） | `query_stock_opinions` / `query_blogger_opinions`（空格分隔多词 OR） | 执行 LLM 自行扩板块/概念词随股名一起传参（MCP 服务端不做同义词展开，见 §4.4.2 / §6.2.8） |
 | 用户问"中际旭创博主历次怎么看" | `query_stock_opinions` | 结构化观点行直达（direction/validity/reasoning/viewpoint_date），纯数字代码也能命中（"300308"→"中际旭创"） |
 | 自动化每日轮询"更新了没" | `check_new_video`（免费） | 0 quota 探测，has_new=true 才触发 digest 收费流程 |
 | 自动化流程开头探余额 | `query_quota`（免费） | 0 quota 查 limit/used/remaining/reset_at，避免跑到一半 429 |
@@ -381,6 +386,147 @@ LLM 调 MCP 拿到的是**事实数据**，分析由 LLM 自行完成：
 - **"凡指代博主都改博主"**（博主表达方式约定）
 - **加粗 / 表格 / 固定结尾声明**：必须落实
 - **配额账单**：每次调用 MCP 后，总结发言末尾（合规声明前）必须附「本次消耗清单 + 剩余 quota」一行（格式见 §3.3 第 9 条）——用户始终知道自己花了多少、还剩多少，避免配额突然用尽产生疑惑
+
+### 4.4 观点雷达模式（通用输出模板，v1.5.0 新增）
+
+> **触发词**：用户说"盘前/盘后/晨报/日报/雷达/观点汇总/自选股观点/持仓追踪"时激活。**不限定盘前**——盘前、盘后、周报、月报、单标的总结、多标的横向对比全部用同一套流程，换参数即可。MCP 服务端只返事实数据，分析框架由客户端 LLM 自行组织。
+
+#### 4.4.1 模式参数
+
+| 参数 | 含义 | 默认值 | 来源 |
+|------|------|--------|------|
+| `time_window` | 报告覆盖的时间窗口 | 盘前=昨日全天；盘后=当日全天 | 用户说"盘前"/"盘后"/"最近X天" |
+| `scope` | 覆盖范围 | 全部新视频 | 用户指定"只看XX板块"则缩小 |
+| `targets` | 自选/关注标的清单 | 用户在对话里直接提供（服务端不存关注清单） | 用户说"我的自选股…"或手动列出 |
+| `depth` | 每只标的检索深度 | standard | standard=结构化+转录搜+板块兜底；deep=加 query_blogger_opinions 全库 |
+| `visualize` | 观点轨迹可视化 | timeline | timeline=mermaid；fallback=箭头链；none=纯文字 |
+
+**LLM 在报告开头显式列出本次参数**（如"📡 盘前观点雷达 · {日期} | 自选：{用户标的清单} | 深度：standard"），方便用户核对。
+
+#### 4.4.2 扩词硬闸（MCP 服务端不做同义词展开，执行 LLM 负责）
+
+**⛔ 这是 LLM 的职责，不是 MCP 的。** 对每个标的，在检索前**按以下方法论自行扩词**（不预设任何默认标的清单，用户的 targets 是什么就扩什么）：
+
+| 标的类型 | 扩词方法论 | 示例（仅教学） |
+|----------|-----------|---------------|
+| 个股 | ① 所属行业/板块名 ② 核心产品/技术词 ③ 市场热门关联概念，2-5 个 | 中际旭创→光模块+800G+1.6T+CPO |
+| 板块 | 上游/下游产业链 + 关联概念 | 光模块→CPO+硅光+800G+算力基建 |
+| 概念 | 代表性标的 + 关联行业/技术 | 商业航天→卫星+火箭+北斗+太空经济 |
+
+**传参铁律**：所有检索调用 keyword 必须「股名 + ≥2 个扩词表概念/板块词」一起传（用空格分隔）。只传裸股名 = 检索不完整，报告无实质内容。
+**词长要求**：单字词已支持（服务端 ≥1 字校验，v1.4.7），但**优先双字词**（「铜价」「有色」）——双字词命中率更高、误配更少。
+
+#### 4.4.3 执行流程（通用，不限盘前）
+
+```
+1. 时间锚点：time_window → 对应日期范围
+   - 盘前 → YESTERDAY（昨日全天）
+   - 盘后 → TODAY（当日全天，截至当前）
+   - 周报/月报/单标的总结 → 用户指定时间范围
+
+2. 视频清单：get_daily_digest(date=时间锚点, include_comments=false)
+   → new_video_count=0 → 改 query_video_list(page=1, page_size=最近3条)
+   → 取 aweme_id / desc_text / direction / create_time_str / framework_dimensions / digg_count
+   → ❌ 不采集评论字段
+
+3. 转录实质分析（每视频）：query_transcript_keywords(aweme_id)
+   → 读 key_sentences + word_freq 判断实质覆盖
+   → entities 为空时绝不能判"没提及"（v1 词典仅 30 股+200 概念，实测常空）
+   → 转录未入库 → 标「转录生成中」，仅用 digest 元信息
+
+4. 市场/话题信号：query_trending_keywords(days=2, top_n=10)
+   → 只用 new_keywords + rising_keywords（过滤停用词）；top_keywords 禁用
+
+5. 自选股两层检索（每股）：
+   a. query_stock_opinions(symbol_or_name="股名 板块词 概念词1 概念词2", limit=5)
+      → 结构化观点行（direction/viewpoint_date/reasoning/video_summary）
+   b. search_video_transcripts(keyword="股名", limit=5)；无命中或陈旧 → 再搜核心 1 个概念词
+      → 转录 snippet + create_time_str + framework_dimensions
+   c. 前两层无近 60 日内容 → 板块词兜底（结果标注板块口径）
+
+6. 8 维框架指引（§4.4.4）
+
+7. 观点轨迹可视化（§4.4.5）
+
+8. 组织输出（§4.4.6）
+```
+
+**时效纪律**：所有观点日期超 90 天标「历史观点，时效偏早」，禁止表述为"最新观点"。
+
+#### 4.4.4 辩证法投资框架分析指引
+
+服务端 `framework_dimensions` 每维自带 `{score, description, suggested_data_sources, analysis_steps}`。LLM 按以下规则生成分析指引：
+
+1. 取「本期覆盖视频 + 自选相关视频」中 **score ≥ 0.5 的维度**并集 = 博主强调维度
+2. 每个强调维度输出一条指引：`维度名｜description 浓缩半句｜analysis_steps 最多 2 步（祈使句）｜suggested_data_sources（原样字段名）`
+3. 指引只到"该看什么数据、做什么分析"，**禁止任何操作指令**（买入/卖出/加仓/减仓/止损/止盈等零豁免）
+
+**示例**：
+> 估值类｜PE/PB 分位评估｜拉取近 5 年 PE-TTM 历史数据计算当前分位点；对比同行业中位数评估相对高估/低估｜finance.pe_ttm / finance.pb_ratio / finance.industry_pe_median
+
+#### 4.4.5 观点轨迹可视化（标准化输出）
+
+每只自选股输出观点轨迹，**必须可视化**：
+
+**首选 mermaid timeline**（渲染环境支持时；下例为示例数据，仅教学）：
+```mermaid
+timeline
+    title 某标的·博主观点轨迹
+    2024-03 : 🟢看多·长线 : 行业景气上行，龙头受益
+    2025-07 : ⚪观察·对比案例 : 供给扩张压制价格，观察拐点
+    2025-12 : 🟢看多·两年预期 : 供需反转确认，中期趋势向上
+```
+
+**降级箭头链**（mermaid 不渲染时，一行搞定）：
+> `2024-03 🟢看多长线 → 2025-07 ⚪观察对比 → 2025-12 🟢看多两年｜历史观点·时效偏早`
+
+**颜色约定**：🟢看多/强烈看多 / 🔴看空/强烈看空 / ⚪中性/观察/未覆盖
+
+**变化标注**：方向变化时加箭头符号（→ 转向 / ↕ 反复 / ↑ 升级 / ↓ 降级），让读者一眼看出观点演变。
+
+#### 4.4.6 输出模板（通用骨架）
+
+```markdown
+📡 模型先生·{time_window_label}·{日期}（自选：{标的清单}）
+
+## 一、{时间窗口}博主核心观点
+（每条 ≤4 行，禁止文字墙）
+
+**{HH:MM}《{desc_text；占位符写"(泛标题)"}》** {🟢/🔴/⚪}{direction} · ❤️{digg_count}
+- 覆盖：{转录判断：具体标的/板块；读不出写"宏观情绪向"}
+- 原话：「{key_sentences 最核心 1 句，≤80 字}」
+- 强调：{score≥0.5 维度缩写，如 估值｜逻辑｜择时}
+
+## 二、话题迁移与板块信号
+- 近两日新话题：{new/rising 财经词，过滤停用词；无则写"无显著迁移"}
+- 板块动向：{step3 读出的行业概念聚合 + 方向；≤3 行}
+
+## 三、自选股观点轨迹与框架指引
+（每股一节，轨迹必须可视化）
+
+### {股名}
+{timeline 或箭头链}
+- 板块级信号：{板块/概念级内容，1-2 行；全无则写"博主近期无相关覆盖"}
+- 🧭 框架指引：{维度｜看什么数据｜做什么分析，≤3 条}
+
+### （其余自选股同构）
+
+## 本期总览
+{≤2 行：几只个股级覆盖 / 几只板块级 / 博主强调集中在哪些维度}
+
+⚠️ 声明：本内容由 AI 聚合生成，非持牌证券投资顾问意见，不构成任何投资建议；数据来自第三方，可能存在延迟或偏差，请以官方信息为准；投资有风险，请自行决策并承担风险。
+```
+
+**呈现禁令**：
+- ❌ 评论热词、博主评论回复——不采集不展示
+- ❌ aweme_id、「口径：结构化/转录搜」等溯源字段——内部采集用，报告不出现
+- ❌ 单段超 3 行的连续文字；一条视频超 4 行
+- ✅ 方向带 🟢🔴⚪ 符号；轨迹用 timeline 或箭头链
+
+#### 4.4.7 缺数据时的正确姿势
+
+- 个股+板块两级都无命中 → 该股写「博主近期无相关覆盖（个股与板块层均未命中）」，不许编造
+- 数据链路异常（digest/转录/搜索全报错）→ 报告照发，标注「本期数据链路异常，仅含视频清单」
 
 ---
 
@@ -528,11 +674,26 @@ MCP 15 tool 负责博主投资框架指引和动态元数据聚合。服务端�
 
 **用户**：「模型先生，我的持仓（中际旭创 + 光模块 + 科创板）博主历次怎么看？」
 
-**LLM 行为**：把每个标的及其所属行业/概念/指数等关键词拼进一次调用，用**空格分隔**：
+**LLM 行为铁律**（主人 2026-09-14 定）：
+1. **先扩写行业/概念/指数**：用行情数据源或自行 NER 识别个股所属板块，拼进查询参数
+2. **空格分隔多关键词**：`"铖昌科技 相控阵雷达 卫星导航 军工"` 而非 `"铖昌科技"`
+3. **单字词也合法**（v1.4.7 已支持）：`"紫金 铜 有色"` 都能搜到
+4. **无个股命中时升维给板块信号**：若 "铖昌科技" hit=false，转查 "相控阵雷达" / "卫星导航" / "军工"
+
+**示例**：
+```python
+# ❌ 错误写法（只传个股名，必漏）
+query_stock_opinions(symbol_or_name="铖昌科技 中科曙光", limit=5)
+
+# ✅ 正确写法（扩写行业/概念/指数）
+query_stock_opinions(symbol_or_name="铖昌科技 相控阵雷达 卫星导航 军工 5G 中科曙光 算力 液冷 服务器 海光信息", limit=10)
+```
+
+> 💡 **原理**：博主视频转录里大量用"相控阵""算力龙头"等泛概念表述，很少直呼个股全称。扩写后命中率提升 3-5 倍。
+> 💡 **多标的批量是 v1.4.1 关键升级**：不再一个标的查一次（N 次烧 N 份 base 配额），而是一次传齐、按标的分组返回。
+
 `query_stock_opinions(symbol_or_name="中际旭创 光模块 科创板", limit=20)`
 （也支持纯数字代码 `"300308"`，服务端自动关联股名双向匹配；单次最多 10 个实体）
-
-> 💡 **多标的批量是 v1.4.1 关键升级**：不再一个标的查一次（N 次烧 N 份 base 配额），而是一次传齐、按标的分组返回。建议由客户端 LLM（或您接入的行情数据源）先把个股的所属行业/概念/指数关键词补全，再一次性传进来，命中率更高、配额更省。
 
 **返回 dict**（key = 输入的每个实体，value = 该实体的命中结果）：
 ```json
@@ -1160,6 +1321,20 @@ v1.4.0 新增 tool 0 命中/边界行为：
 
 ## 附录 B：变更日志
 
+- **v1.5.0** (2026-09-14) — 观点雷达通用模式（§4.4）
+  - 🔴 **§4.4 观点雷达模式新增**：一套流程换参数复用的通用输出骨架（盘前/盘后/周报/月报/单标的轨迹/多标的横向对比），五参数 `time_window/scope/targets/depth/visualize` 区分场景；扩词硬闸（LLM 自行扩板块/概念词，服务端不做同义词展开）→ digest → 转录实质分析 → 自选股两层检索 → 8 维框架指引（`framework_dimensions` score≥0.5 维度组织 analysis_steps）→ 观点轨迹可视化（mermaid timeline 首选 + 箭头链降级）→ 条目化输出模板
+  - 🔴 **呈现纪律**：评论热词/溯源字段（aweme_id、结构化/转录搜口径标注）不采集不展示；一条视频 ≤4 行，方向带 🟢🔴⚪ 符号；时效超 90 天标「历史观点」
+  - 🟠 description 触发词扩展（盘前盘后观点雷达/自选股轨迹/多标的对比）+ 决策树/§3.6 补观点雷达分支与扩词检索行
+  - 🟡 附录 C（盘前雷达单机 Prompt 范例，含预设自选清单）移除——skill 保持通用，不预设任何默认标的；单机自动化 prompt 由用户侧自管
+
+- **v1.4.7** (2026-09-14) — 单字词检索 + 博主发言口径
+  - 🟠 keyword 校验 ≥2 字 → ≥1 字：板块维度单字词（铜/锂）合法可搜；双字词命中率仍更优
+  - 🟠 `query_comments` 只检索博主本人发言（is_author=1），top_keywords/samples 全口径改「博主发言」
+  - 🟡 §6.2.8 扩词铁律重写（LLM 行为铁律 4 条 + ❌/✅ 传参对比示例）；README/安装命令路径对齐仓库根
+
+- **v1.4.6** (2026-09-13) — 三 tool 多 keyword 化
+  - 🟠 `search_videos` / `query_blogger_opinions` / `query_aggregated_sentiment` keyword 支持空格分隔多词 OR（≤10），多词不加价按合并去重行数计费；sentiment 多 keyword 返回 `{keyword: 单词结构}` 分组
+
 - **v1.4.5** (2026-09-13) — 配额账单强制播报
   - 🔴 **§3.3 第 9 条升级 + §4.3 输出硬闸新增**：每次调用 MCP 后，给用户的总结发言末尾必须附「本次消耗清单 + 剩余 quota」一行（多 tool 逐项累加，单 tool 也照报；合规声明之前）。数据源 = 各返回 `_meta.quota_cost` 可信累加 + 最后一次 `_meta.quota_remaining`（分钟级延迟，精确余量以官网 mcp-tokens 页为准）
   - 🟡 §6.1 成功范本补账单行示例（LLM 照抄格式）
@@ -1233,3 +1408,4 @@ v1.4.0 新增 tool 0 命中/边界行为：
   - 行情 skill 整合（白名单 + 启动扫描）
   - manifest 提示式自更新
   - 错误码全档映射
+
