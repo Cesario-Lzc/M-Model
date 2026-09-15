@@ -8,6 +8,12 @@
 >
 > **数据源**：目前仅收录财经博主「模型先生」的 A 股视频数据；后续将接入更多博主，以 [官网最新公告](https://mrmodel.cesario.top) 为准。
 
+## 90 秒看懂
+
+<video src="https://cdn.jsdelivr.net/gh/Cesario-Lzc/M-Model@main/mcp-promo-video.mp4" controls width="720" style="max-width:100%"></video>
+
+> 视频打不开？[GitHub raw 直链](https://raw.githubusercontent.com/Cesario-Lzc/M-Model/main/mcp-promo-video.mp4)（始终最新）
+
 ## 快速开始
 
 ```bash
@@ -63,6 +69,45 @@ if call("check_new_video", known_id=last_id)["has_new"]:      # 免费
 opinions = call("query_stock_opinions", symbol_or_name="中际旭创", date_from="2026-08-08", limit=20)
 # → direction / validity / reasoning / viewpoint_date 观点行，客户端 LLM 自行组织分析
 ```
+
+## Example Prompts：装完就能问
+
+装好后对 Claude 直接说人话即可，无需记任何参数。每条后面标注的是背后自动调用的工具。
+
+**每日节奏**
+
+- 「今天博主发了什么新视频？各自讲了啥？」→ `get_daily_digest`
+- 「博主更新了没？」→ `check_new_video`（免费）
+- 「给我整理一份今天的晨报，带观点方向和评论区热词」→ `get_daily_digest`
+
+**个股 / 板块观点追踪**
+
+- 「中际旭创最近被怎么看？给了哪些理由？」→ `query_stock_opinions`
+- 「300308 历次观点和原话都列出来」→ `query_stock_opinions`（纯代码也能查）
+- 「光模块这个板块博主是看多还是看空？」→ `query_stock_opinions`
+- 「白酒板块博主最近三周的态度有变化吗？」→ `query_stock_opinions`（配 date_from/date_to）
+- 「我持仓里贵州茅台、宁德时代，博主分别怎么评价的？」→ `query_stock_opinions`（多标的批量）
+
+**观点检索与原文**
+
+- 「博主聊过 AI 算力的视频有哪些？」→ `search_videos`
+- 「找一下博主提到"预期差"的原话片段」→ `search_video_transcripts`
+- 「博主对创业板最近的完整分析框架」→ `query_blogger_opinions`
+- 「把最新那期视频的完整观点维度展开」→ `query_real_desc_text`
+
+**评论与市场热词**
+
+- 「最近一期视频评论区都在聊什么？」→ `query_comments`
+- 「平台现在什么关键词最热？」→ `query_trending_keywords`
+- 「博主提到铜和黄金时，看多看空的比例是多少？」→ `query_aggregated_sentiment`
+
+**进阶组合（观点雷达）**
+
+- 「拉一份最近 30 天博主对半导体链的观点全景：方向分布 + 高频理由 + 原话金句，最后输出一页 markdown」→ `query_stock_opinions` + `query_blogger_opinions` + `search_video_transcripts` 组合
+- 「对比博主和上一季度对同一批核心标的的态度变化」→ `query_stock_opinions`（多标的 + 时间窗）
+- 「先看我还有多少额度，再决定跑全量还是精简版」→ `query_quota`（免费）+ 任意
+
+> 更多模式见 [SKILL.md](SKILL.md) §4.4 观点雷达（盘前/盘后/周报/单标的轨迹/多标的对比，一套流程换参数）。
 
 ## 配额成本
 

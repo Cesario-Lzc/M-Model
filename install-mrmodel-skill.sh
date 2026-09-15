@@ -131,7 +131,7 @@ SKILL_VERSION=$(grep -m1 '^version:' "$TARGET_SKILL_DIR/SKILL.md" 2>/dev/null | 
 [ -z "$SKILL_VERSION" ] && SKILL_VERSION="1.4.0"   # frontmatter 读不出时的兜底
 info "Step 4/5 写入 MCP 配置版本标识 (X-Skill-Version: $SKILL_VERSION)"
 
-PATCH_OUT=$(SKILL_VERSION="$SKILL_VERSION" MCP_HOST="${MCP_URL#https://}" python3 - <<'PYEOF' || echo "  [异常] 未能自动写入, 请手工添加 X-Skill-Version"
+PATCH_OUT=$(SKILL_VERSION="$SKILL_VERSION" MCP_HOST="${MCP_URL#https://}" MCP_TOKEN="$TOKEN" python3 - <<'PYEOF' || echo "  [异常] 未能自动写入, 请手工添加 X-Skill-Version"
 import json
 import os
 import shutil
@@ -165,6 +165,32 @@ def iter_server_dicts(node):
         for item in node:
             for found in iter_server_dicts(item):
                 yield found
+
+
+def _write_new_entry(path, cfg, token):
+    """往 cfg 的顶层 mcpServers 写/补全 mr-model 条目，.bak 备份后落盘。
+    已有 mr-model 条目时只补 headers，url 不动（防覆盖用户自定义）。"""
+    servers = cfg.setdefault("mcpServers", {})
+    srv = servers.get("mr-model")
+    if not isinstance(srv, dict):
+        srv = {}
+        servers["mr-model"] = srv
+    srv.setdefault("url", "https://%s/mcp" % HOST)
+    headers = srv.get("headers")
+    if not isinstance(headers, dict):
+        headers = {}
+        srv["headers"] = headers
+    headers["Authorization"] = "Bearer " + token
+    headers[HEADER] = VER
+    if os.path.isfile(path):
+        shutil.copy2(path, path + ".bak")
+    else:
+        parent = os.path.dirname(path)
+        if parent and not os.path.isdir(parent):
+            os.makedirs(parent, exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(cfg, f, ensure_ascii=False, indent=2)
+    print("  [已创建] %s 里的 mr-model 条目 (原文件备份为 %s.bak)" % (path, path))
 
 
 def main():
@@ -218,9 +244,40 @@ def main():
     elif already_ok:
         print("  [无需修改] 配置里已是最新版本标识")
     else:
-        print("  [未找到] 没能自动定位到你的 MCP 配置文件")
-        print('  请手动在 mcpServers.mr-model.headers 里加一行: "%s": "%s"' % (HEADER, VER))
-        print("  常见位置: ~/.workbuddy/mcp.json 或 ~/.claude.json")
+        # 新装用户：任何候选配置都没有本服务条目 → 自动创建 mr-model 条目
+        # （json 模块读写 + .bak 备份，与 patch 同一安全姿势；token 走 env 不落日志）
+        token = os.environ.get("MCP_TOKEN", "")
+        if not token:
+            print("  [跳过] 未读到 token, 请手动在 mcpServers.mr-model 配置 url + headers")
+            return
+        created = False
+        for path in CANDIDATES:
+            if not os.path.isfile(path):
+                continue
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    cfg = json.load(f)
+                if not isinstance(cfg, dict):
+                    continue
+            except Exception as e:
+                print("  [跳过] %s 解析失败 (%s)" % (path, type(e).__name__))
+                continue
+            try:
+                _write_new_entry(path, cfg, token)
+                created = True
+            except Exception as e:
+                print("  [失败] %s 写回失败 (%s: %s)" % (path, type(e).__name__, e))
+            break
+        if not created:
+            # 候选全不存在 → 新建 ~/.claude.json（首次装 MCP 的极简用户）
+            try:
+                _write_new_entry(os.path.expanduser("~/.claude.json"), {}, token)
+                created = True
+            except Exception as e:
+                print("  [失败] ~/.claude.json 创建失败 (%s: %s)" % (type(e).__name__, e))
+        if not created:
+            print('  请手动在 mcpServers.mr-model.headers 里加一行: "%s": "%s"' % (HEADER, VER))
+            print("  常见位置: ~/.workbuddy/mcp.json 或 ~/.claude.json")
 
 
 main()
@@ -260,7 +317,10 @@ fi
 
 echo ""
 echo "=================================================="
-echo "  ✅ 装好了！打开 Claude Code 试 '模型先生, 最近有什么视频?'"
+echo "  ✅ 装好了！打开 Claude Code 直接用人话问，比如："
+echo "    ① 模型先生，最近有什么视频？"
+echo "    ② 中际旭创最近被怎么看？给的理由是什么？"
+echo "    ③ 给我出一份今天的晨报，带多空方向和评论区热词"
 echo "=================================================="
 echo ""
 echo "卸载: rm -rf $TARGET_SKILL_DIR $TARGET_TOKEN_FILE  # 当前宿主: $TARGET_SKILL_DIR"
