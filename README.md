@@ -21,7 +21,7 @@
 curl -sL https://raw.githubusercontent.com/Cesario-Lzc/M-Model/main/install-mrmodel-skill.sh | bash
 ```
 
-成品位置：装机完成后 `~/.claude/skills/mr-model/SKILL.md` 已就位，启动 Claude 时按 SKILL.md §1 触发词自动激活。
+成品位置：装机完成后 `~/.claude/skills/mr-model/` 下 SKILL.md（主文档）+ OUTPUT-REFERENCE.md（返回结构参考，按需查）已就位，启动 Claude 时按 SKILL.md §1 触发词自动激活。
 
 **前置**：注册 mrmodel 账号（[mrmodel.cesario.top](https://mrmodel.cesario.top)）→ 查看/复制 MCP token（[mcp-tokens](https://mrmodel.cesario.top/mcp-tokens)，**注册即有，1 人 1 个**）→ 写入 `~/.config/mrmodel/token`。
 
@@ -161,7 +161,7 @@ curl -fsSL https://raw.githubusercontent.com/Cesario-Lzc/M-Model/main/install-mr
 - **MCP 服务**：[mcp.cesario.top](https://mcp.cesario.top)（Bearer token 鉴权）
 - **官网 Web / API**：[mrmodel.cesario.top](https://mrmodel.cesario.top)
 - **Token 查看/复制/重置**：[mrmodel.cesario.top/mcp-tokens](https://mrmodel.cesario.top/mcp-tokens)（注册即有 · 1 人 1 个）
-- **完整文档**：[SKILL.md](SKILL.md)（15 tool 决策树 + 双模式输出规范 + 功能 tool 范本 + 合规硬闸）
+- **完整文档**：[SKILL.md](SKILL.md)（15 tool 决策树 + 双模式输出规范 + 合规硬闸）+ [OUTPUT-REFERENCE.md](OUTPUT-REFERENCE.md)（15 tool 返回 JSON 结构参考）
 
 ## License
 
