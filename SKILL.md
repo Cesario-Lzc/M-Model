@@ -2,7 +2,7 @@
 name: mr-model
 description: 「模型先生」+ 任何问题（博主观点/视频检索/最近 30 天对个股怎么看/每日晨报/持仓观点追踪/盘前盘后观点雷达/自选股轨迹/多标的对比）→ 触发本 skill。内部按 15 tool 决策树调用 https://mcp.cesario.top（5 基础 tool + 6 高级 tool + 4 功能 tool：query_video_list / search_videos / query_blogger_opinions / search_video_transcripts / query_comments / query_real_desc_text / query_dimension_levels / query_transcript_keywords / query_aggregated_sentiment / query_creator_meta / query_trending_keywords / query_quota / check_new_video / query_stock_opinions / get_daily_digest），用 mcp_tokens Bearer 鉴权。输出模式：① 灵活模式（短问答/快查，简明扼要）② 详细模式（深度分析，可多空对照 + 分时段）③ 观点雷达模式（§4.4 通用骨架：盘前/盘后/周报/单标的轨迹/多标的横向对比）+ 合规硬闸（禁个股买卖方向/仓位/价位）。分析思路由客户端 LLM 基于事实数据自行组织（服务端只返事实数据，不下发任何分析框架/方法论字段）。建议结合您自行接入的行情数据源（公开行情接口 / 自有行情 skill）以获得「观点 + 价格」的更完整分析。需先设置 MR_MCP_TOKEN 环境变量或 ~/.config/mrmodel/token 文件。懒校验、不烧配额、version 比对式自更新。
 origin: custom
-version: 1.5.0
+version: 1.5.1
 ---
 
 # mrmodel-skill — mr-model MCP 调用框架
@@ -1055,7 +1055,7 @@ curl -sS -X POST https://mcp.cesario.top/mcp \
     // ⚠️ 注意：这 4 个 tool 里的单维只有 4 键（score/description/suggested_data_sources/analysis_steps），
     //    level + label 两键只在 query_dimension_levels 里才出现（见 A.3.2）
   },
-  "_meta": {"quota_cost": 1, "quota_remaining": 809},   // quota_cost 可信；quota_remaining 读只读副本有分钟级延迟（见 §3.3 第 9 条）
+  "_meta": {"quota_cost": 1, "quota_remaining": 809, "data_as_of": "2026-09-15 10:52"},   // quota_cost 可信；quota_remaining 读只读副本有分钟级延迟（见 §3.3 第 9 条）；data_as_of = 数据集最新视频时间（新鲜度外显，全 tool 通用）
   "_tx_id": "uuid4-xxxx"                                    // M3 注入追踪 ID
 }
 ```
@@ -1258,6 +1258,7 @@ curl -sS -X POST https://mcp.cesario.top/mcp \
         "validity": "mid_term",                       // short_term/mid_term/long_term/event_driven
         "time_horizon_text": "半年内",                 // 自由文本，可空
         "timeliness": 0.85,                           // 0-1 时效分
+        "quote": "704亿就是704亿，市场只信订单...",     // 博主原话金句（逐字摘自转录，≤50字，可能为空）
         "reasoning": "北美大客户 1.6T 招标提前...",     // 博主推理原文
         "viewpoint_date": "2026-09-05",               // 观点日期
         "video_summary": "本期讲光模块三剑客...",
@@ -1268,6 +1269,8 @@ curl -sS -X POST https://mcp.cesario.top/mcp \
   },
   "光模块": {"hit": true, "claims": [ /* ... */ ]},
   "科创板": {"hit": false, "claims": []},
+  // 每个命中实体另附 top_quotes：该标的博主观点评级最高的原话金句 ≤3 条
+  //   （时间序去重，元素 {quote, viewpoint_date, aweme_id}，无金句则不带此字段）
   "_meta": {"quota_cost": 3},
   "_tx_id": "..."
 }
@@ -1287,6 +1290,7 @@ curl -sS -X POST https://mcp.cesario.top/mcp \
       "aweme_id": "...", "desc_text": "...", "create_time_str": "2026-09-07 21:21",
       "dialectics_tags": ["趋势类"], "framework_dimensions": {...},
       "comment_top_keywords": [["液冷", 12], ["服务器", 8], ["产能", 5]],  // 每条视频 TOP3 评论热词
+      "quote": "我至少看到万点以上",              // 博主本期原话金句（逐字转录摘取，无则不带此字段）
       "comment_count": 348
     }
   ],
