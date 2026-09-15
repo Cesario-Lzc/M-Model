@@ -1254,7 +1254,7 @@ curl -sS -X POST https://mcp.cesario.top/mcp \
         "entity_name": "中际旭创",                     // 标准化剥代码后缀
         "entity_name_raw": "中际旭创(300308)",         // 原始名（可能带代码）
         "entity_type": "stock",                       // stock/sector/concept/index/commodity
-        "direction": "看多",                           // 看多/强烈看多/看空/强烈看空/中性（博主观点客观陈述）
+        "direction": "看多",                           // 看多/强烈看多/看空/强烈看空/中性/观察（观察=只是提及没给观点；博主观点客观陈述）
         "validity": "mid_term",                       // short_term/mid_term/long_term/event_driven
         "time_horizon_text": "半年内",                 // 自由文本，可空
         "timeliness": 0.85,                           // 0-1 时效分
