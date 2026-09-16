@@ -2,7 +2,7 @@
 name: mr-model
 description: 「模型先生」+ 任何问题（博主观点/视频检索/最近 30 天对个股怎么看/每日晨报/持仓观点追踪/盘前盘后观点雷达/自选股轨迹/多标的对比）→ 触发本 skill。内部按 15 tool 决策树调用 https://mcp.cesario.top（5 基础 tool + 6 高级 tool + 4 功能 tool：query_video_list / search_videos / query_blogger_opinions / search_video_transcripts / query_comments / query_real_desc_text / query_dimension_levels / query_transcript_keywords / query_aggregated_sentiment / query_creator_meta / query_trending_keywords / query_quota / check_new_video / query_stock_opinions / get_daily_digest），用 mcp_tokens Bearer 鉴权。输出模式：① 灵活模式（短问答/快查，简明扼要）② 详细模式（深度分析，可多空对照 + 分时段）③ 观点雷达模式（§4.4 通用骨架：盘前/盘后/周报/单标的轨迹/多标的横向对比）+ 合规硬闸（禁个股买卖方向/仓位/价位）。分析思路由客户端 LLM 基于事实数据自行组织（服务端只返事实数据，不下发任何分析框架/方法论字段）。建议结合您自行接入的行情数据源（公开行情接口 / 自有行情 skill）以获得「观点 + 价格」的更完整分析。需先设置 MR_MCP_TOKEN 环境变量或 ~/.config/mrmodel/token 文件。懒校验、不烧配额、version 比对式自更新。
 origin: custom
-version: 1.5.2
+version: 1.5.3
 ---
 
 # mrmodel-skill — mr-model MCP 调用框架
@@ -45,9 +45,9 @@ version: 1.5.2
 
 ### 配额档位速记
 - **所有账号**（user / trial / plus / pro）：**人人享 200 quota 终身体验额度**（注册即有，一次性赠送不按月重置，账号状态正常即可，15 tool 全部可用）
-- **ProMax**（价格以官网公告为准）：10000 quota / 30 天 + 15 tool 全量
+- **Pro**（价格以官网公告为准）：3000 quota / 30 天 + 15 tool 全量
 - **admin / sub_admin**：无限（-1）
-- 体验额度用尽返 429 `quota_exceeded`：终身体验额度一次性，不按月重置——升级 Pro 或 ProMax 继续用（见 §9.8）
+- 体验额度用尽返 429 `quota_exceeded`：终身体验额度一次性，不按月重置——升级 Pro 继续用（见 §9.8）
 - 💡 **省 quota 两件套**：`query_quota` / `check_new_video` 0 quota 免费；`get_daily_digest`(8) 一次顶替多次散调
 
 ---
@@ -174,7 +174,7 @@ curl -s -X POST https://mcp.cesario.top/mcp \
 #### 5 基础 tool
 
 > **配额公式**：`cost = ⌈base + 行数 × per⌉ quota`（向上取整，防拖库；非 list 返 base 单次）
-> **单位**：**quota**（配额点；ProMax 享 10000 quota / 30 天滚动窗口，其余档位人人享 200 quota 终身体验额度，一次性不按月重置）
+> **单位**：**quota**（配额点；Pro 享 3000 quota / 30 天滚动窗口，其余档位人人享 200 quota 终身体验额度，一次性不按月重置）
 
 | Tool | 必填 | 关键可选 | 默认值 | 配额成本 (quota) | 返回类型 |
 |------|------|----------|--------|------------------|----------|
@@ -243,7 +243,7 @@ videos = [json.loads(item.text) for item in response["result"]["content"] if ite
 
 ### 3.3 配额保护策略（KISS：宁可少调不烧配额）
 
-> 单位：**quota**（配额点；ProMax 1000 / 30 天滚动窗口，其余档位 200 quota 终身体验）
+> 单位：**quota**（配额点；Pro 3000 / 30 天滚动窗口，其余档位 200 quota 终身体验）
 
 1. **免费两件套先用**（v1.4.0）：自动化流程开头 `query_quota()` 探余额（0 quota）；轮询"更新了没"用 `check_new_video()`（0 quota），有更新才触发收费流程
 2. **晨报场景一次到位**：每日总结用 `get_daily_digest`（8 quota）顶替「query_video_list + N×query_stock_opinions + N×query_comments」散调（等效散件总价 ≥10 quota 还烧 LLM 归纳）
@@ -773,7 +773,7 @@ check_new_video(known_id=上次id) → has_new=false → 零成本收工
 
 **LLM 输出**：
 > 您的 200 quota 免费体验额度已用完（终身一次性，不按月重置）。
-> 升级 ProMax（10000 quota / 30 天）可继续使用：登录官网 → 会员中心；ProMax 本期用尽则等本期结束自动重置。
+> 升级 Pro（3000 quota / 30 天）可继续使用：登录官网 → 会员中心；Pro 本期用尽则等本期结束自动重置。
 
 ### 6.5 鉴权失败范本
 
@@ -896,7 +896,7 @@ curl -sS -X POST https://mcp.cesario.top/mcp \
 
 ---
 
-## 8. 错误码处理（全档映射，v1.1.0 加 ProMax 倒计时）
+## 8. 错误码处理（全档映射，v1.1.0 加升级倒计时）
 
 ### 8.0 426 需要升级（v319+ 版本闸门）
 
@@ -923,19 +923,19 @@ curl -sS -X POST https://mcp.cesario.top/mcp \
 |--------|------|----------|
 | `account_disabled` | 账号已禁用 | 「您的账号当前处于禁用状态，暂时无法调用～如认为是误判，欢迎登录官网联系我们核实处理」 |
 | `account_banned` | 账号被封禁 | 「账号封禁中，封禁结束后会自动恢复～如有疑问欢迎登录官网联系我们」 |
-| `mcp_not_enabled` | 当前账号未开放 MCP（罕见；正常注册账号人人享 200 quota 终身体验） | 「当前账号暂未开放 MCP 调用～正常注册账号均享 200 quota 终身体验额度，如确认账号状态正常仍报此错，请登录官网联系开发者处理；如需大配额可升级 ProMax（见 §9.8）」 |
+| `mcp_not_enabled` | 当前账号未开放 MCP（罕见；正常注册账号人人享 200 quota 终身体验） | 「当前账号暂未开放 MCP 调用～正常注册账号均享 200 quota 终身体验额度，如确认账号状态正常仍报此错，请登录官网联系开发者处理；如需大配额可升级 Pro（见 §9.8）」 |
 
 **契约要点**（2026-09-03 v1.3.2 更新）：
 - **人人保底 200（终身）**：所有账号状态正常的用户均享 200 quota 终身体验额度，一次性赠送不按月重置（15 tool 全部可用）
-- **ProMax** 10000 quota / 30 天滚动窗口（本期用尽等本期结束自动重置）；admin / sub_admin 无限（-1）
-- 体验额度用尽返 429 `quota_exceeded`：终身一次性，不按月重置——升级 Pro 或 ProMax 继续用（见 §9.8）；异常情况引导用户登录官网联系开发者
+- **Pro** 3000 quota / 30 天滚动窗口（本期用尽等本期结束自动重置）；admin / sub_admin 无限（-1）
+- 体验额度用尽返 429 `quota_exceeded`：终身一次性，不按月重置——升级 Pro 继续用（见 §9.8）；异常情况引导用户登录官网联系开发者
 
 ### 8.3 429 限流/配额
 
 | 错误码 | 原因 | 兜底话术 |
 |--------|------|----------|
 | `rate_limited` | burst 30/min 触发 | 「请求太频繁啦，休息 1 分钟再来～」（Retry-After: 60） |
-| `quota_exceeded` | 免费用户终身体验额度用完 / ProMax 本期配额用尽 | 免费用户：「您的 200 quota 免费体验额度已用完（终身一次性，不按月重置）。升级 ProMax（10000 quota / 30 天）可继续使用：登录 mrmodel.cesario.top → 会员中心；如遇异常欢迎登录官网联系我们处理」。ProMax：「本期 MCP 配额已用尽（X/100000），本期结束后自动重置；如遇异常欢迎登录官网联系我们处理」（Retry-After: 86400） |
+| `quota_exceeded` | 免费用户终身体验额度用完 / Pro 本期配额用尽 | 免费用户：「您的 200 quota 免费体验额度已用完（终身一次性，不按月重置）。升级 Pro（3000 quota / 30 天）可继续使用：登录 mrmodel.cesario.top → 会员中心；如遇异常欢迎登录官网联系我们处理」。Pro：「本期 MCP 配额已用尽（X/3000），本期结束后自动重置；如遇异常欢迎登录官网联系我们处理」（Retry-After: 86400） |
 
 ### 8.4 5xx 服务端错误
 
@@ -969,8 +969,8 @@ curl -sS -X POST https://mcp.cesario.top/mcp \
 
 **Q**：报 `quota_exceeded`，配额怎么不见恢复？
 **A**：
-1. 免费体验额度 = 200 quota 终身一次性，不按月重置；用完升级 ProMax 即可继续
-2. ProMax = 10000 quota / 30 天滚动窗口，本期用尽等本期结束自动重置（按开通时间起算，非自然月）
+1. 免费体验额度 = 200 quota 终身一次性，不按月重置；用完升级 Pro 即可继续
+2. Pro = 3000 quota / 30 天滚动窗口，本期用尽等本期结束自动重置（按开通时间起算，非自然月）
 3. 用量随时在官网 mcp-tokens 页查看；如对扣费有疑问，欢迎登录官网联系开发者核对
 
 ### 9.4 想拿 PE/估值（行情数据）
@@ -1006,28 +1006,28 @@ curl -sS -X POST https://mcp.cesario.top/mcp \
 # 或从旧机器拷贝 SKILL.md 到 ~/.claude/skills/mr-model/ 后配置 token（环境变量或 ~/.config/mrmodel/token）
 ```
 
-### 9.8 如何升级到 ProMax
+### 9.8 如何升级到 Pro
 
-**Q**：200 quota 终身体验额度用完了，或报 `mcp_not_enabled`，怎么升级 ProMax？
+**Q**：200 quota 终身体验额度用完了，或报 `mcp_not_enabled`，怎么升级 Pro？
 
 **A**：
 
-1. 登录 https://mrmodel.cesario.top → 头像 → 会员中心 → 选 ProMax
+1. 登录 https://mrmodel.cesario.top → 头像 → 会员中心 → 选 Pro
 2. 支付开通：价格以官网首页公告为准
-3. token 无需重新创建：注册即有，升级后同一 token 立即享 10000 quota / 30 天
+3. token 无需重新创建：注册即有，升级后同一 token 立即享 3000 quota / 30 天
 
-**体验额度 vs ProMax**？
+**体验额度 vs Pro**？
 
 - 人人保底 200 quota 终身体验（所有账号状态正常的用户），轻量查询约可问 6 个问题
-- ProMax 10000 quota / 30 天，重度分析不心疼；**6 高级 tool + 4 功能 tool（晨报/观点追踪）+ 大配额 + 多用户共享 + 跨设备同步** = ProMax 核心价值
+- Pro 3000 quota / 30 天，重度分析不心疼；**6 高级 tool + 4 功能 tool（晨报/观点追踪）+ 大配额 + 多用户共享 + 跨设备同步** = Pro 核心价值
 - 5 基础 tool 对应的查询能力在官网 Web 端免费（网页直接查视频/博主/评论）；MCP 通道的价值是让 AI 助手自动化调用全部 15 tool
-- 体验额度用尽返 429 `quota_exceeded`：终身一次性不重置，升级 ProMax 立即恢复大配额
+- 体验额度用尽返 429 `quota_exceeded`：终身一次性不重置，升级 Pro 立即恢复大配额
 
-**升级后立即可调**：1 token 跨设备不区分（iPhone/Mac/Linux 同一 token 都享 10000 quota / 30 天，1 用户 1 API key 策略）
+**升级后立即可调**：1 token 跨设备不区分（iPhone/Mac/Linux 同一 token 都享对应档位配额，1 用户 1 API key 策略）
 
 ### 9.9 15 tool / 高级+功能 tool 在哪看
 
-**Q**：升级到 ProMax 后哪些 tool 立即可用？
+**Q**：升级到 Pro 后哪些 tool 立即可用？
 **A**：15 tool 全部立即可用，无额外开关：
 - 6 高级 tool：`query_real_desc_text` / `query_dimension_levels`（单视频深度解读）/ `query_transcript_keywords`（转录 5 类分析）/ `query_aggregated_sentiment`（多空情绪聚合 + 拐点）/ `query_creator_meta`（博主元信息）/ `query_trending_keywords`（平台热词趋势）
 - 4 功能 tool（v1.4.0）：`query_quota` / `check_new_video`（2 个免费）/ `query_stock_opinions`（结构化观点）/ `get_daily_digest`（每日晨报）
@@ -1050,6 +1050,9 @@ Read ~/.claude/skills/mr-model/OUTPUT-REFERENCE.md   # WorkBuddy 为 ~/.workbudd
 - **A.4 边界行为**：0 命中 `_hint` / 分页 page_marker / 免疫字段
 ## 附录 B：变更日志
 
+- **v1.5.3** (2026-09-16) — 档位收口：对外只推 Pro
+  - 🔴 **ProMax 从全部用户可见文案撤下**（§配额档位速记/§3.2/§3.3/§6.4/§8.2/§8.3/§9.3/§9.8/§9.9 + README）：ProMax 定价未定，升级引导一律改「升级 Pro（3000 quota / 30 天）」；admin 无限档与档位内部逻辑不受影响
+  - 🟠 修 quota 数字遗留错：免费档「20 quota」→「200 quota」、`X/100000` → `X/3000`、ProMax 旧值 1000 表述清干净
 - **v1.5.2** (2026-09-15) — 轻锚输出层 + 附录 A 迁出瘦身
   - 🟠 **§4.1 轻锚输出层新增**：灵活/详细模式正文前先给一行观点锚（方向符号 🟢🔴⚪ + 博主原话金句 + 观点日期），金句为空省略引语段不硬凑；雷达模式不叠加
   - 🟠 **附录 A 迁出**：15 tool 返回 JSON 结构参考移至同目录 `OUTPUT-REFERENCE.md`（按需 Read），SKILL.md 1415 → 1128 行省 ~19% token；正文留指针 + 速记三行

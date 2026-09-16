@@ -112,7 +112,7 @@ opinions = call("query_stock_opinions", symbol_or_name="中际旭创", date_from
 ## 配额成本
 
 > **公式**：`cost = ⌈base + 行数 × per⌉ quota`（向上取整，防拖库；dict 返回走 base 单次）
-> **单位**：**quota**（配额点；ProMax 享 10000 quota / 30 天滚动窗口，其余档位人人享 200 quota 终身体验额度，一次性不按月重置）
+> **单位**：**quota**（配额点；Pro 享 3000 quota / 30 天滚动窗口，其余档位人人享 200 quota 终身体验额度，一次性不按月重置）
 
 ### 免费 tool（0 quota）
 
@@ -136,11 +136,11 @@ opinions = call("query_stock_opinions", symbol_or_name="中际旭创", date_from
 
 **免费体验**：**所有账号均享 200 quota 终身体验额度**（注册即有，一次性赠送不按月重置，15 tool 全部可用，无需付费；轻量查询约可问 6 个问题）。
 
-**升级 ProMax**：享 10000 quota / 30 天 + 15 tool 全量，价格以[官网会员页](https://mrmodel.cesario.top)公告为准。
+**升级 Pro**：享 3000 quota / 30 天 + 15 tool 全量，价格以[官网会员页](https://mrmodel.cesario.top)公告为准。
 
-**升级路径**：登录 [mrmodel.cesario.top](https://mrmodel.cesario.top) → 头像 → 会员中心 → 选 ProMax → 支付 → 约 1-5 分钟自动生效（token 注册即有，无需申请，升级后同一 token 直接享大配额）。
+**升级路径**：登录 [mrmodel.cesario.top](https://mrmodel.cesario.top) → 头像 → 会员中心 → 选 Pro → 支付 → 约 1-5 分钟自动生效（token 注册即有，无需申请，升级后同一 token 直接享大配额）。
 
-**1 token 跨设备通用**（iPhone / Mac / Linux 同一 token 都享 10000 quota / 30 天，1 用户 1 API key；完整明文随时在 [mcp-tokens 页](https://mrmodel.cesario.top/mcp-tokens)查看/复制，泄露点「重置」即换新）。
+**1 token 跨设备通用**（iPhone / Mac / Linux 同一 token 都享对应档位配额，1 用户 1 API key；完整明文随时在 [mcp-tokens 页](https://mrmodel.cesario.top/mcp-tokens)查看/复制，泄露点「重置」即换新）。
 
 ## 合规能力
 
