@@ -200,7 +200,7 @@
   "quota_remaining": 997,                       // null = 不限
   "window_started_at": "2026-08-25T09:58:08+08:00",
   "reset_at": "2026-09-24T09:58:08+08:00",      // 窗口重置时间；终身体验额度为 null
-  "is_lifetime": false,                         // true = 20 quota 终身体验额度
+  "is_lifetime": false,                         // true = 200 quota 终身体验额度
   "_meta": {"quota_cost": 0},
   "_tx_id": "..."
 }
