@@ -97,7 +97,7 @@ bash install-mrmodel-skill.sh --dry-run        # 全流程预演，不落盘
 | 查配额余量 | `query_quota` | **免费** | `{limit, used, remaining, reset_at, is_lifetime}` |
 | 探测新视频 | `check_new_video` | **免费** | `{latest_aweme_id, has_new}`（轮询神器） |
 | 结构化观点追踪 | `query_stock_opinions` | 2+0.1/行 | **多标的批量**：空格分隔传个股/板块/概念，按标的分组返回历次看多/看空 + 时效 + 推理原文（"300308"也能查） |
-| 每日晨报 | `get_daily_digest` | 8 quota | 当日新视频 + 多空方向 + 评论热词 |
+| 每日晨报 | `get_daily_digest` | 8 quota | **近 5 期动态**（当天没更新也照常有货）+ 多空方向 + 评论热词 |
 
 **调用事例**（每日自动化晨报，总 8 quota vs 散件 10+ quota）：
 

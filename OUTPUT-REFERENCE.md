@@ -258,20 +258,23 @@
 
 > **dict 返回，FastMCP 只拆 1 条 content item**（区别于 list 返回的 N 条），解析见 §3.2。无命中实体返 `{"hit": false, "claims": []}`，全部 0 命中返 `{"_hint": {...}}`。名称匹配双向：「中际旭创」命中「中际旭创(300308)」；「300308」也能命中。
 
-#### A.3.12 get_daily_digest（v1.4.0 实测，8 quota）
+#### A.3.12 get_daily_digest（v1.5.5 实测，8 quota）
 
 ```json
 {
-  "date": "2026-09-07",                          // 不传默认昨天（CST）
-  "generated_at": "2026-09-08T07:00:01+08:00",
-  "new_video_count": 2,
+  "date": "2026-09-21",                          // recent 模式=窗口内最新一期日期；day 模式=指定日
+  "mode": "recent",                              // recent=近 5 期滚动（不传 date 默认）/ day=指定日
+  "date_range": "2026-09-16 ~ 2026-09-21",       // 仅 recent 模式返回，窗口时间跨度
+  "generated_at": "2026-09-22T13:55:09+08:00",
+  "new_video_count": 5,
   "new_videos": [
     {
-      "aweme_id": "...", "desc_text": "...", "create_time_str": "2026-09-07 21:21",
-      "dialectics_tags": ["趋势类"], "framework_dimensions": {...},
-      "comment_top_keywords": [["液冷", 12], ["服务器", 8], ["产能", 5]],  // 每条视频 TOP3 评论热词
-      "quote": "我至少看到万点以上",              // 博主本期原话金句（逐字转录摘取，无则不带此字段）
-      "comment_count": 348
+      "aweme_id": "...", "desc_text": "...", "create_time_str": "2026-09-21 17:07",
+      "dialectics_tags": ["综合"], "framework_dimensions": {...},
+      "direction": "中性",                        // 多空方向（看多/看空/中性，include_sentiment=true 默认附）
+      "comment_top_keywords": [["先生", 106], ["今天", 71], ["发型", 36]],  // 每条视频 TOP3 评论热词
+      "comment_analyzed": 272,                    // 库内有效评论条数（与平台快照 comment_count 口径不同）
+      "quote": "博主本期原话金句"                  // 逐字转录摘取（≤100 字，无则不带此字段）
     }
   ],
   "_meta": {"quota_cost": 8},
@@ -300,5 +303,5 @@
 
 v1.4.0 新增 tool 0 命中/边界行为：
 - `query_stock_opinions` → 标的无观点返空 list（0 条 content item）；纯数字代码也能命中（双向匹配）
-- `get_daily_digest` → 当日无新视频返 `new_video_count: 0` + 空 `new_videos`（dict 恒有，不报错）
+- `get_daily_digest` → **不传 date 恒返近 5 期**（当天没更新也满载，只有空库才返 `new_video_count: 0`）；传 date 该日无新视频返 `new_video_count: 0` + 空 `new_videos`（dict 恒有，不报错）
 - `check_new_video` → `known_id` 不存在（已删）保守按 `has_new: true`
