@@ -1,6 +1,6 @@
 ---
 name: mr-model
-description: 「模型先生」+ 任何问题（博主观点/视频检索/最近 30 天对个股怎么看/每日晨报/持仓观点追踪/盘前盘后观点雷达/自选股轨迹/多标的对比）→ 触发本 skill。内部按 15 tool 决策树调用 https://mcp.cesario.top（5 基础 tool + 6 高级 tool + 4 功能 tool：query_video_list / search_videos / query_blogger_opinions / search_video_transcripts / query_comments / query_real_desc_text / query_dimension_levels / query_transcript_keywords / query_aggregated_sentiment / query_creator_meta / query_trending_keywords / query_quota / check_new_video / query_stock_opinions / get_daily_digest），用 mcp_tokens Bearer 鉴权。输出模式：① 灵活模式（短问答/快查，简明扼要）② 详细模式（深度分析，可多空对照 + 分时段）③ 观点雷达模式（§4.4 通用骨架：盘前/盘后/周报/单标的轨迹/多标的横向对比）+ 合规硬闸（禁个股买卖方向/仓位/价位）。分析思路由客户端 LLM 基于事实数据自行组织（服务端只返事实数据，不下发任何分析框架/方法论字段）。建议结合您自行接入的行情数据源（公开行情接口 / 自有行情 skill）以获得「观点 + 价格」的更完整分析。需先设置 MR_MCP_TOKEN 环境变量或 ~/.config/mrmodel/token 文件。懒校验、不烧配额、version 比对式自更新。
+description: 「模型先生」+ 任何问题（博主观点/视频检索/最近 30 天对个股怎么看/每日晨报/持仓观点追踪/盘前盘后观点雷达/自选股轨迹/多标的对比）→ 触发本 skill。内部按 15 tool 决策树调用 https://mcp.cesario.top（5 基础 tool + 6 高级 tool + 4 功能 tool：query_video_list / search_videos / query_blogger_opinions / search_video_transcripts / query_comments / query_real_desc_text / query_dimension_levels / query_transcript_keywords / query_aggregated_sentiment / query_creator_meta / query_trending_keywords / query_quota / check_new_video / query_stock_opinions / get_daily_digest），用 mcp_tokens Bearer 鉴权。输出模式：① 灵活模式（短问答/快查，简明扼要）② 详细模式（深度分析，可多空对照 + 分时段）③ 观点雷达模式（§4.4 通用骨架：盘前/盘后/周报/单标的轨迹/多标的横向对比）+ 合规硬闸（禁个股买卖方向/仓位/价位）。分析思路由客户端 LLM 基于事实数据自行组织（服务端只返事实数据，不下发任何分析框架/方法论字段）。建议结合您自行接入的行情数据源（豆包 WorkBuddy / Cursor / CodeBuddy 行情 skill / 公开行情接口 / 自有行情 API）以获得「观点 + 价格」的更完整分析。需先设置 MR_MCP_TOKEN 环境变量或 ~/.config/mrmodel/token 文件。懒校验、不烧配额、version 比对式自更新。
 origin: custom
 version: 1.5.10
 ---
@@ -29,7 +29,7 @@ version: 1.5.10
 - ✅ 单视频深度解读（全字段 / 8 维档位 / 转录 5 类分析 / 多空情绪聚合）
 - ✅ 平台热词趋势（最近 N 天热词/新词/上升词）
 - ✅ 博主 meta（元信息：总视频数/更新频率/影响力）
-- ✅ 结合您自行接入的行情数据源（公开行情接口 / 自有行情 skill）做「观点 + 价格」组合分析
+- ✅ 结合您自行接入的行情数据源（豆包 WorkBuddy / Cursor / CodeBuddy 行情 skill / 腾讯自选股 / 新浪财经 / 东方财富等）做「观点 + 价格」组合分析
 - ❌ 非 A 股（美股/港股/期货）—— 走 mr-overseas-kline
 - ❌ 个股直接买卖建议 —— 合规硬闸硬挡
 - ❌ 管理后台操作（封号/改配额等）—— 不在 MCP 能力范围
@@ -551,7 +551,7 @@ MCP 15 tool 负责博主投资框架指引和动态元数据聚合。服务端�
 ### 5.3 与行情数据的组合使用
 
 - **MCP 侧**：博主观点、视频转录、评论热词、结构化 claims、多空情绪聚合、8 维框架标签、平台热词趋势
-- **您自行接入**：腾讯自选股 / 新浪财经 / 东方财富等公开行情接口 / 已有行情类 skill / API
+- **您自行接入**：豆包 WorkBuddy / Cursor / CodeBuddy 等平台的行情类 skill / 腾讯自选股 / 新浪财经 / 东方财富等公开行情接口（多个数据源交叉验证更可靠）
 - **组合思路**：先调 MCP 15 tool 拿博主观点 → 再调行情接口获取价格等交易数据 → LLM 自行组织成盘前简报
 
 **合规提醒**：MCP 侧严禁下发操作指令（买入/卖出/目标价/仓位比例等）或收益承诺（稳赚/必涨等），所有分析逻辑由客户端 LLM 基于事实数据自行组织，不得替用户作投资建议。
