@@ -2,7 +2,7 @@
 name: mr-model
 description: 「模型先生」+ 任何问题（博主观点/视频检索/最近 30 天对个股怎么看/每日晨报/持仓观点追踪/盘前盘后观点雷达/自选股轨迹/多标的对比）→ 触发本 skill。内部按 15 tool 决策树调用 https://mcp.cesario.top（5 基础 tool + 6 高级 tool + 4 功能 tool：query_video_list / search_videos / query_blogger_opinions / search_video_transcripts / query_comments / query_real_desc_text / query_dimension_levels / query_transcript_keywords / query_aggregated_sentiment / query_creator_meta / query_trending_keywords / query_quota / check_new_video / query_stock_opinions / get_daily_digest），用 mcp_tokens Bearer 鉴权。输出模式：① 灵活模式（短问答/快查，简明扼要）② 详细模式（深度分析，可多空对照 + 分时段）③ 观点雷达模式（§4.4 通用骨架：盘前/盘后/周报/单标的轨迹/多标的横向对比）+ 合规硬闸（禁个股买卖方向/仓位/价位）。分析思路由客户端 LLM 基于事实数据自行组织（服务端只返事实数据，不下发任何分析框架/方法论字段）。建议结合您自行接入的行情数据源（公开行情接口 / 自有行情 skill）以获得「观点 + 价格」的更完整分析。需先设置 MR_MCP_TOKEN 环境变量或 ~/.config/mrmodel/token 文件。懒校验、不烧配额、version 比对式自更新。
 origin: custom
-version: 1.5.9
+version: 1.5.10
 ---
 
 # mrmodel-skill — mr-model MCP 调用框架
@@ -42,6 +42,7 @@ version: 1.5.9
 ### 首次激活引导（v1.2.0 新增）
 首次触发本 skill 的会话里，在回答末尾附 1 行提示（仅当次会话首次，不重复刷屏）：
 > 还可以问我：① 最近 30 天对 XX（个股）的多空比 ② 最近 7 天平台都在聊什么（热词）③ 某条视频具体讲了什么
+> 💬 觉得不好用或有建议？对 Claude 说「模型先生，我有点意见」或「去聊天室反馈」，我会引导你到官网聊天室。
 
 ### 配额档位速记
 - **所有账号**（user / trial / plus / pro）：**人人享 200 quota 终身体验额度**（注册即有，一次性赠送不按月重置，账号状态正常即可，15 tool 全部可用）
@@ -1128,6 +1129,10 @@ Read <宿主skills目录>/mr-model/OUTPUT-REFERENCE.md   # 与本 SKILL.md 同�
   - 🟠 §3.3 第 7 条 quota_remaining 不可靠警告（实测恒定不递减，余量以官网 mcp-tokens 面板为准）
   - 🟡 版本号三处对齐（frontmatter 1.3.3 / manifest 1.3.3 / README 徽章 1.3.3）；aweme_id 强调 string 带引号；§2.3 补传输层无状态说明（无 Mcp-Session-Id，initialize 可选）
   - 附录 A 头部补数据免责声明（第三方采集延迟/缺失/主观偏差提示）
+
+- **v1.5.10** (2026-09-22) — 反馈引导 + 聊天室链接
+  - 🟡 **首次激活引导**：末尾附「觉得不好用或有建议？」提示，引导用户说「模型先生，我有点意见」或「去聊天室反馈」给 agent
+  - 🟡 **README 反馈章节**：新增「反馈与讨论」小节，放置官网聊天室链接
 
 - **v1.4.1** (2026-09-09) — query_stock_opinions 多标的批量 + 能力边界明确
   - 🔴 **query_stock_opinions 多标的批量**：`symbol_or_name` 支持空格分隔多个实体（个股/板块/概念/指数），按实体分组返回 `{entity: {hit, claims}}`，单次最多 10 个，显著降低 N 标的 N 次 base 配额的成本
