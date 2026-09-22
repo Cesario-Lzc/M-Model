@@ -1,6 +1,6 @@
 # M-Model — A 股财经视频 MCP 调用框架
 
-[![Version](https://img.shields.io/badge/version-1.5.0-blue.svg)](https://github.com/Cesario-Lzc/M-Model)
+[![Version](https://img.shields.io/badge/version-1.5.4-blue.svg)](https://github.com/Cesario-Lzc/M-Model)
 [![MCP Server](https://img.shields.io/badge/MCP-15_tools-green.svg)](https://mcp.cesario.top)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey.svg)](#license)
 
@@ -16,14 +16,62 @@
 
 ## 快速开始
 
+**前置**：注册 mrmodel 账号（[mrmodel.cesario.top](https://mrmodel.cesario.top)）——**注册即得 MCP token（1 人 1 个）+ 200 quota 终身体验额度，15 个 tool 全部可用，无需付费**。token 随时在 [mcp-tokens 页](https://mrmodel.cesario.top/mcp-tokens) 查看/复制。
+
 ```bash
 # 从源仓库直拉最新安装脚本（GitHub raw，始终最新版；备用镜像见脚本头部说明）
 curl -sL https://raw.githubusercontent.com/Cesario-Lzc/M-Model/main/install-mrmodel-skill.sh | bash
 ```
 
-成品位置：装机完成后 `~/.claude/skills/mr-model/` 下 SKILL.md（主文档）+ OUTPUT-REFERENCE.md（返回结构参考，按需查）已就位，启动 Claude 时按 SKILL.md §1 触发词自动激活。
+脚本自动探测你机器上已有的智能体宿主并全部装入，装有 MCP 配置的文件同步写入/更新。装完打开你的智能体客户端，按 SKILL.md §1 触发词直接用人话问。
 
-**前置**：注册 mrmodel 账号（[mrmodel.cesario.top](https://mrmodel.cesario.top)）→ 查看/复制 MCP token（[mcp-tokens](https://mrmodel.cesario.top/mcp-tokens)，**注册即有，1 人 1 个**）→ 写入 `~/.config/mrmodel/token`。
+## Agent 自动安装（面向 AI 智能体，任意宿主通用）
+
+安装脚本专为「让 agent 代跑」设计：**不锁死宿主、非交互不卡死、结果可判读**。任何智能体平台（Claude Code / WorkBuddy / Cursor / CodeBuddy / 豆包 等）都可一行命令完成安装。
+
+### 宿主安装矩阵（自动探测，全装）
+
+| 探测路径（存在即装入） | 宿主 |
+|---|---|
+| `~/.claude/skills/mr-model` | Claude Code |
+| `~/.workbuddy/skills/mr-model` | WorkBuddy |
+| `~/.cursor/skills/mr-model` | Cursor |
+| `~/.codebuddy/skills/mr-model` | CodeBuddy |
+| `~/.doubao/agent_mode/workspace/.user_skills/mr-model` | 豆包 |
+
+- 上述都不存在 → fallback 装 `~/.claude/skills/mr-model`
+- 自定义单目录：`MRMODEL_SKILL_DIR=/your/path bash install-mrmodel-skill.sh`
+
+### 安装契约 5 步（脚本自动完成）
+
+1. **探测宿主**：扫描上表路径，存在的宿主全部装入
+2. **落盘 skill**：SKILL.md + OUTPUT-REFERENCE.md（CDN 直拉优先，sha256 与内嵌副本比对防旧版，失败 fallback 内嵌）
+3. **写 token**：env `MR_MCP_TOKEN` → 已有 token 文件 → 交互询问（非交互环境不卡死，跳过并给补配指引）
+4. **写 MCP 配置**：向已有宿主配置（`~/.workbuddy/mcp.json`、`~/.claude.json`、`~/.cursor/mcp.json` 等）写入/更新 `mr-model` 条目（url + Bearer + `X-Skill-Version`，原文件自动 `.bak` 备份）
+5. **验证**：healthz 探活 + tools/list 鉴权（15 tool 全可见）
+
+### env 契约
+
+| 变量 | 作用 |
+|---|---|
+| `MRMODEL_SKILL_DIR` | 显式指定 skill 安装目录（跳过宿主探测） |
+| `MRMODEL_TOKEN_FILE` | 显式指定 token 文件路径（默认 `~/.config/mrmodel/token`） |
+| `MRMODEL_MCP_URL` | 显式指定 MCP 端点（默认 `https://mcp.cesario.top/mcp`） |
+| `MR_MCP_TOKEN` | 直接传 token（免交互） |
+
+### 参数与退出码
+
+```bash
+bash install-mrmodel-skill.sh --list-targets   # 打印宿主安装矩阵，不安装
+bash install-mrmodel-skill.sh --dry-run        # 全流程预演，不落盘
+```
+
+| 退出码 | 含义 |
+|---|---|
+| `0` | 完全成功（含鉴权通过） |
+| `1` | 脚本自身错误 |
+| `2` | skill 已装好但缺 token（agent 按输出指引补配即可） |
+| `3` | 鉴权失败（token 无效 / status 非 active / 配额打爆） |
 
 ## 它能做什么
 

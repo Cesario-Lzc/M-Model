@@ -2,7 +2,7 @@
 name: mr-model
 description: 「模型先生」+ 任何问题（博主观点/视频检索/最近 30 天对个股怎么看/每日晨报/持仓观点追踪/盘前盘后观点雷达/自选股轨迹/多标的对比）→ 触发本 skill。内部按 15 tool 决策树调用 https://mcp.cesario.top（5 基础 tool + 6 高级 tool + 4 功能 tool：query_video_list / search_videos / query_blogger_opinions / search_video_transcripts / query_comments / query_real_desc_text / query_dimension_levels / query_transcript_keywords / query_aggregated_sentiment / query_creator_meta / query_trending_keywords / query_quota / check_new_video / query_stock_opinions / get_daily_digest），用 mcp_tokens Bearer 鉴权。输出模式：① 灵活模式（短问答/快查，简明扼要）② 详细模式（深度分析，可多空对照 + 分时段）③ 观点雷达模式（§4.4 通用骨架：盘前/盘后/周报/单标的轨迹/多标的横向对比）+ 合规硬闸（禁个股买卖方向/仓位/价位）。分析思路由客户端 LLM 基于事实数据自行组织（服务端只返事实数据，不下发任何分析框架/方法论字段）。建议结合您自行接入的行情数据源（公开行情接口 / 自有行情 skill）以获得「观点 + 价格」的更完整分析。需先设置 MR_MCP_TOKEN 环境变量或 ~/.config/mrmodel/token 文件。懒校验、不烧配额、version 比对式自更新。
 origin: custom
-version: 1.5.3
+version: 1.5.4
 ---
 
 # mrmodel-skill — mr-model MCP 调用框架
@@ -874,8 +874,10 @@ install 脚本会顺带把 `X-Skill-Version` 写进你的 MCP 配置（写前自
 "X-Skill-Version": "1.4.0"
 ```
 
-常见位置：`~/.workbuddy/mcp.json`、`~/.claude.json`（注意可能嵌在 `projects.<目录>.mcpServers` 下）、
-`~/Library/Application Support/Claude/claude_desktop_config.json`。
+常见位置（因宿主而异，安装脚本会自动探测已存在的宿主并写入）：
+WorkBuddy `~/.workbuddy/mcp.json`、Claude Code `~/.claude.json`（注意可能嵌在 `projects.<目录>.mcpServers` 下）、
+Cursor `~/.cursor/mcp.json`、CodeBuddy `~/.codebuddy/mcp.json`、Claude Desktop `~/Library/Application Support/Claude/claude_desktop_config.json`；
+其他智能体平台按其 MCP 配置规范放置（skill 文件落在对应宿主的 skills/mr-model/ 目录）。
 
 **自查是否已被判定为旧客户端**
 
@@ -1003,7 +1005,7 @@ curl -sS -X POST https://mcp.cesario.top/mcp \
 **A**：
 ```bash
 # 在目标机器上直接跑安装命令 (见 §7.5), 一条命令装齐
-# 或从旧机器拷贝 SKILL.md 到 ~/.claude/skills/mr-model/ 后配置 token（环境变量或 ~/.config/mrmodel/token）
+# 或从旧机器拷贝 SKILL.md 到当前宿主的 skills/mr-model/ 目录后配置 token（环境变量或 ~/.config/mrmodel/token）
 ```
 
 ### 9.8 如何升级到 Pro
@@ -1041,7 +1043,7 @@ curl -sS -X POST https://mcp.cesario.top/mcp \
 **完整 JSON 字段结构不再内嵌正文**（26K token 的 SKILL.md 每次触发全量进上下文，附录占 1/5）——已迁至同目录 **`OUTPUT-REFERENCE.md`**，需要核对某 tool 返回字段细节（字段名/类型/形态/边界行为）时再 Read 它：
 
 ```
-Read ~/.claude/skills/mr-model/OUTPUT-REFERENCE.md   # WorkBuddy 为 ~/.workbuddy/skills/mr-model/
+Read <宿主skills目录>/mr-model/OUTPUT-REFERENCE.md   # 与本 SKILL.md 同目录（路径因宿主而异）
 ```
 
 速记（细节看参考文件）：
@@ -1050,6 +1052,10 @@ Read ~/.claude/skills/mr-model/OUTPUT-REFERENCE.md   # WorkBuddy 为 ~/.workbudd
 - **A.4 边界行为**：0 命中 `_hint` / 分页 page_marker / 免疫字段
 ## 附录 B：变更日志
 
+- **v1.5.4** (2026-09-22) — 宿主通用化：任意智能体平台可装
+  - 🟠 **安装脚本不再锁死宿主**：自动探测已存在的宿主目录（~/.claude / ~/.workbuddy / ~/.cursor / ~/.codebuddy / ~/.doubao 等全装）；非交互无 token（curl | bash / agent 代跑）不再卡死不再失败，装完文件即给补配指引（注册即送 200 quota 体验额度）
+  - 🟠 新参数 `--list-targets`（打印宿主安装矩阵）/ `--dry-run`（全流程预演不落盘）；语义化退出码 0=完全成功 / 2=装好但缺 token / 3=鉴权失败
+  - 🟡 文档去 Claude Code 特化（§7.4 常见位置 / §9.7 跨设备 / 附录 A Read 路径）；结尾提示改「打开你的智能体客户端」
 - **v1.5.3** (2026-09-16) — 档位收口：对外只推 Pro
   - 🔴 **ProMax 从全部用户可见文案撤下**（§配额档位速记/§3.2/§3.3/§6.4/§8.2/§8.3/§9.3/§9.8/§9.9 + README）：ProMax 定价未定，升级引导一律改「升级 Pro（3000 quota / 30 天）」；admin 无限档与档位内部逻辑不受影响
   - 🟠 修 quota 数字遗留错：免费档「20 quota」→「200 quota」、`X/100000` → `X/3000`、ProMax 旧值 1000 表述清干净
