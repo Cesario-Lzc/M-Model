@@ -1,4 +1,4 @@
-# mr-model MCP · 15 tool 返回结构参考（OUTPUT-REFERENCE v1.5.8）
+# mr-model MCP · 15 tool 返回结构参考（OUTPUT-REFERENCE v1.5.9）
 
 > **本文是 SKILL.md 的附属参考文件**（随 install 脚本一起装入 skill 目录），完整 JSON 字段结构在这里，SKILL.md 正文只留指针——按需 Read 本文件，省 token。
 > 数据免责声明：数据来自第三方博主公开视频的采集聚合，可能存在采集延迟、字段缺失或博主主观偏差；结构以生产实测为准，服务端升级后以 `tools/list` 实际返回为准。

@@ -1,6 +1,6 @@
 # M-Model — A 股财经视频 MCP 调用框架
 
-[![Version](https://img.shields.io/badge/version-1.5.8-blue.svg)](https://github.com/Cesario-Lzc/M-Model)
+[![Version](https://img.shields.io/badge/version-1.5.9-blue.svg)](https://github.com/Cesario-Lzc/M-Model)
 [![MCP Server](https://img.shields.io/badge/MCP-15_tools-green.svg)](https://mcp.cesario.top)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey.svg)](#license)
 
@@ -17,6 +17,20 @@
 <img src="assets/mcp-modal.png" alt="MCP 数据接入面板：API Token 明文 + 复制/重置按钮 + MCP 配额 0/200 次（终身体验额度）" width="560">
 
 > Token 可随时回该面板查看；如泄露点「重置」即换新，重置后需到智能体更新 API Token。
+
+## MCP 能力展示
+
+3 组 MCP 真实数据可视化——装好智能体就能问到的能力：
+
+| 能力 | 背后调用 | 数据特征 |
+|------|---------|---------|
+| 结构化观点追踪 | `query_stock_opinions` | 博主对个股/板块历次看多看空 + 时效 + 原话金句 |
+| 多空情绪分布 | `query_aggregated_sentiment` | 行业级多空投向 + TOP 多头/空头引文 |
+| 平台热词趋势 | `query_trending_keywords` | 本周飙升词 + 新出现词 + 热度排名 |
+
+<img src="assets/mcp-viz-showcase.png" alt="MCP 能力展示：3 组真实数据可视化（结构化观点追踪 / 多空情绪 / 热词趋势）" width="1200">
+
+> 截图数据来自 MCP 真实响应——中际旭创 11 条观点轨迹、光模块多空分布、本周热门词汇排名。
 
 ```bash
 # 从源仓库直拉最新安装脚本（GitHub raw，始终最新版；备用镜像见脚本头部说明）
