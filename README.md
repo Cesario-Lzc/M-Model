@@ -8,12 +8,6 @@
 >
 > **数据源**：目前仅收录财经博主「模型先生」的 A 股视频数据；后续将接入更多博主，以 [官网最新公告](https://mrmodel.cesario.top) 为准。
 
-## 90 秒看懂
-
-<video src="https://cdn.jsdelivr.net/gh/Cesario-Lzc/M-Model@main/mcp-promo-video.mp4" controls width="720" style="max-width:100%"></video>
-
-> 视频打不开？[GitHub raw 直链](https://raw.githubusercontent.com/Cesario-Lzc/M-Model/main/mcp-promo-video.mp4)（始终最新）
-
 ## 快速开始
 
 **前置**：注册 mrmodel 账号（[mrmodel.cesario.top](https://mrmodel.cesario.top)）——**注册即得 MCP token（1 人 1 个）+ 200 quota 终身体验额度，15 个 tool 全部可用，无需付费**。token 随时在 [mcp-tokens 页](https://mrmodel.cesario.top/mcp-tokens) 查看/复制。
