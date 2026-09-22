@@ -1,4 +1,4 @@
-# mr-model MCP · 15 tool 返回结构参考（OUTPUT-REFERENCE v1.5.6）
+# mr-model MCP · 15 tool 返回结构参考（OUTPUT-REFERENCE v1.5.7）
 
 > **本文是 SKILL.md 的附属参考文件**（随 install 脚本一起装入 skill 目录），完整 JSON 字段结构在这里，SKILL.md 正文只留指针——按需 Read 本文件，省 token。
 > 数据免责声明：数据来自第三方博主公开视频的采集聚合，可能存在采集延迟、字段缺失或博主主观偏差；结构以生产实测为准，服务端升级后以 `tools/list` 实际返回为准。
@@ -65,7 +65,7 @@
 
 > top_keywords 含表情词/语气词属正常现象（UGC 词频中性统计），LLM 展示时自行过滤噪声词。
 
-**可选：`include_samples=true` 返 TOP5 脱敏热评原文（v1.4.0 新增，同 1 quota 不额外收费）**：
+**可选：`include_samples=true` 返 TOP5 评论原文（v1.4.0 新增，同 1 quota 不额外收费）**：
 
 ```json
 {
@@ -75,7 +75,7 @@
 }
 ```
 
-> 三层脱敏：① 无评论者昵称/uid/任何标识 ② PII 正则过滤（手机号/邮箱/身份证等）③ 最多 5 条。
+> 隐私边界：不含评论者昵称/uid 等任何标识，不含手机号/邮箱/身份证等个人信息，最多 5 条。
 > 默认 `include_samples=false` 不返原文（合规默认行为不变）。
 
 ### A.3 高级 tool 输出结构（v1.1.0 新增）

@@ -1,6 +1,6 @@
 # M-Model — A 股财经视频 MCP 调用框架
 
-[![Version](https://img.shields.io/badge/version-1.5.6-blue.svg)](https://github.com/Cesario-Lzc/M-Model)
+[![Version](https://img.shields.io/badge/version-1.5.7-blue.svg)](https://github.com/Cesario-Lzc/M-Model)
 [![MCP Server](https://img.shields.io/badge/MCP-15_tools-green.svg)](https://mcp.cesario.top)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey.svg)](#license)
 
@@ -10,7 +10,13 @@
 
 ## 快速开始
 
-**前置**：注册 mrmodel 账号（[mrmodel.cesario.top](https://mrmodel.cesario.top)）——**注册即得 MCP token（1 人 1 个）+ 200 quota 终身体验额度，15 个 tool 全部可用，无需付费**。token 随时在 [mcp-tokens 页](https://mrmodel.cesario.top/mcp-tokens) 查看/复制。
+**前置**：注册 mrmodel 账号（[mrmodel.cesario.top](https://mrmodel.cesario.top)）——**注册即得 MCP token（1 人 1 个）+ 200 quota 终身体验额度，15 个 tool 全部可用，无需付费**。
+
+登录后打开 [mrmodel.cesario.top/mcp-tokens](https://mrmodel.cesario.top/mcp-tokens)，直达「MCP 数据接入」面板——Token 明文就在面板里，点「复制」即用：
+
+<img src="assets/mcp-modal.png" alt="MCP 数据接入面板：API Token 明文 + 复制/重置按钮 + MCP 配额 0/200 次（终身体验额度）" width="560">
+
+> Token 可随时回该面板查看；如泄露点「重置」即换新，重置后需到智能体更新 API Token。
 
 ```bash
 # 从源仓库直拉最新安装脚本（GitHub raw，始终最新版；备用镜像见脚本头部说明）
@@ -77,7 +83,7 @@ bash install-mrmodel-skill.sh --dry-run        # 全流程预演，不落盘
 | 关键词搜视频 | `search_videos` | `query="光模块 CPO"`（多词 OR，v1.4.6） | 20 条命中视频 desc |
 | 博主观点时间线 | `query_blogger_opinions` | `keyword="贵州茅台 白酒", limit=20`（多词 OR，v1.4.6） | 20 条视频的 8 维框架 + dialectics_tags |
 | 转录片段搜 | `search_video_transcripts` | `keyword="光模块", limit=20` | 20 段转录 snippet（≤65 字含前后文） |
-| 博主发言聚合（可选原文） | `query_comments` | `aweme_id="..."`, `include_samples=true` | 博主本人发言统计 + TOP5 脱敏原文 |
+| 博主发言聚合（可选原文） | `query_comments` | `aweme_id="..."`, `include_samples=true` | 博主本人发言统计 + TOP5 评论原文（匿名） |
 
 ### 6 高级 tool（单视频深挖/聚合/meta）
 
@@ -182,7 +188,7 @@ opinions = call("query_stock_opinions", symbol_or_name="中际旭创", date_from
 
 **升级路径**：登录 [mrmodel.cesario.top](https://mrmodel.cesario.top) → 头像 → 会员中心 → 选 Pro → 支付 → 约 1-5 分钟自动生效（token 注册即有，无需申请，升级后同一 token 直接享大配额）。
 
-**1 token 跨设备通用**（iPhone / Mac / Linux 同一 token 都享对应档位配额，1 用户 1 API key；完整明文随时在 [mcp-tokens 页](https://mrmodel.cesario.top/mcp-tokens)查看/复制，泄露点「重置」即换新）。
+**1 token 跨设备通用**（iPhone / Mac / Linux 同一 token 都享对应档位配额，1 用户 1 API key；完整明文随时在 [mcp-tokens 面板](https://mrmodel.cesario.top/mcp-tokens)查看/复制，泄露点「重置」即换新）。
 
 ## 合规能力
 

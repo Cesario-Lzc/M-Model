@@ -2,7 +2,7 @@
 name: mr-model
 description: 「模型先生」+ 任何问题（博主观点/视频检索/最近 30 天对个股怎么看/每日晨报/持仓观点追踪/盘前盘后观点雷达/自选股轨迹/多标的对比）→ 触发本 skill。内部按 15 tool 决策树调用 https://mcp.cesario.top（5 基础 tool + 6 高级 tool + 4 功能 tool：query_video_list / search_videos / query_blogger_opinions / search_video_transcripts / query_comments / query_real_desc_text / query_dimension_levels / query_transcript_keywords / query_aggregated_sentiment / query_creator_meta / query_trending_keywords / query_quota / check_new_video / query_stock_opinions / get_daily_digest），用 mcp_tokens Bearer 鉴权。输出模式：① 灵活模式（短问答/快查，简明扼要）② 详细模式（深度分析，可多空对照 + 分时段）③ 观点雷达模式（§4.4 通用骨架：盘前/盘后/周报/单标的轨迹/多标的横向对比）+ 合规硬闸（禁个股买卖方向/仓位/价位）。分析思路由客户端 LLM 基于事实数据自行组织（服务端只返事实数据，不下发任何分析框架/方法论字段）。建议结合您自行接入的行情数据源（公开行情接口 / 自有行情 skill）以获得「观点 + 价格」的更完整分析。需先设置 MR_MCP_TOKEN 环境变量或 ~/.config/mrmodel/token 文件。懒校验、不烧配额、version 比对式自更新。
 origin: custom
-version: 1.5.6
+version: 1.5.7
 ---
 
 # mrmodel-skill — mr-model MCP 调用框架
@@ -56,7 +56,7 @@ version: 1.5.6
 
 ### 2.1 token 读取优先级（3 级 fallback）
 
-> token **注册即有**（1 人 1 个，无需申请/创建），完整明文随时在 [mcp-tokens 页](https://mrmodel.cesario.top/mcp-tokens)查看/复制。
+> token **注册即有**（1 人 1 个，无需申请/创建），完整明文随时在 [mcp-tokens 面板](https://mrmodel.cesario.top/mcp-tokens)查看/复制。
 
 ```bash
 # 优先级 1（推荐）：环境变量
@@ -148,7 +148,7 @@ curl -s -X POST https://mcp.cesario.top/mcp \
 ├─ 包含"评论"/"评论区"/"热不热"？
 │   └─ YES → 先 query_video_list 拿最新视频 → 读 dict.aweme_id → query_comments(aweme_id=...)
 │            （默认返聚合统计视图：total_comments/avg_digg/top_keywords；
-│              需要热评原文时 include_samples=true → TOP5 脱敏评论，无评论者标识）
+│              需要热评原文时 include_samples=true → TOP5 评论原文，无评论者标识）
 ├─ 包含具体关键词（个股名/板块名/概念名）但无时间限定？
 │   └─ YES → search_videos(query=..., page=1, page_size=20)  ← 模糊兜底
 │
@@ -182,7 +182,7 @@ curl -s -X POST https://mcp.cesario.top/mcp \
 | `search_videos` | `query` (≥1字, 空格分隔多词 OR ≤10，v1.4.6) | `page`, `page_size` (≤20) | page=1, page_size=20 | base=1, per=0.1×N（page_size=20 → 3；多词不加价，按合并去重后实际行数计） | **list[dict]**（0 命中时返 `_hint` dict） |
 | `query_blogger_opinions` | `keyword` (≥1字, 空格分隔多词 OR ≤10，v1.4.6) | `date_from`, `date_to`, `limit` (1-20) | limit=20 | base=2, per=0.1×N（limit=20 → 4；多词不加价，按合并去重后实际行数计） | **list[dict]**（0 命中时 `_hint.reason=no_match`） |
 | `search_video_transcripts` | `keyword` | `limit` (1-20) | limit=20 | base=2, per=0.05×N（limit=20 → 3） | **list[dict]**（含转录 snippet ≤65 字） |
-| `query_comments` | `aweme_id` | `include_samples` (true=返 TOP5 博主发言脱敏原文), `sample_size` (≤5) | include_samples=false | 1（dict 聚合，per_row 不计） | **dict 聚合**（total/avg_digg/max_digg/top_keywords=博主发言词频 + 可选 samples） |
+| `query_comments` | `aweme_id` | `include_samples` (true=返 TOP5 评论原文（匿名）), `sample_size` (≤5) | include_samples=false | 1（dict 聚合，per_row 不计） | **dict 聚合**（total/avg_digg/max_digg/top_keywords=博主发言词频 + 可选 samples） |
 
 > 📌 `query_video_list` 增量三参（v1.4.0 新增）：`date_from`/`date_to` 按 CST 日界过滤；`since_id` 传已知最新 aweme_id 只返更新的视频（每日增量同步 1 次调用拿齐，不用全量翻页）。
 
@@ -253,7 +253,7 @@ videos = [json.loads(item.text) for item in response["result"]["content"] if ite
 6. **query_comments 单次 1 个 aweme_id**（聚合 dict 统计，cost=1 quota）；热评原文 `include_samples=true` 不额外收费（同 1 quota）
 7. **高级 tool base 1-2 quota**（query_transcript_keywords / query_aggregated_sentiment / query_trending_keywords cost=2 quota，含 jieba/NER/聚合计算；query_real_desc_text / query_dimension_levels / query_creator_meta cost=1 quota）
 8. **不级联调用**：拿不到结果就告诉用户，不无限重试
-9. **配额账单强制播报（v1.2.0 引入，v1.4.5 强化）**：**每次调用 MCP 后，给用户的总结发言末尾必须附一行「配额账单」**（合规声明之前），单 tool 也照报——格式：`—— 本次消耗：query_stock_opinions 4 quota · 剩余 16 quota ——`；多 tool 逐项累加：`—— 本次消耗：search_videos 3 + query_stock_opinions 4 = 7 quota · 剩余 13 quota ——`。数据源：各返回的 `_meta.quota_cost`（**可信**）逐项累加；剩余取最后一次返回的 `_meta.quota_remaining`（建议会话开头用免费的 `query_quota()` 校准一次基线）。⚠️ `_meta.quota_remaining` 与 `query_quota` 的余量读的是服务端只读副本，**有分钟级同步延迟**（扣费实时写主库，副本约 2 分钟一同步）——刚扣完费立刻查余量可能显示旧值，精确余量以官网 mcp-tokens 页为准
+9. **配额账单强制播报（v1.2.0 引入，v1.4.5 强化）**：**每次调用 MCP 后，给用户的总结发言末尾必须附一行「配额账单」**（合规声明之前），单 tool 也照报——格式：`—— 本次消耗：query_stock_opinions 4 quota · 剩余 16 quota ——`；多 tool 逐项累加：`—— 本次消耗：search_videos 3 + query_stock_opinions 4 = 7 quota · 剩余 13 quota ——`。数据源：各返回的 `_meta.quota_cost`（**可信**）逐项累加；剩余取最后一次返回的 `_meta.quota_remaining`（建议会话开头用免费的 `query_quota()` 校准一次基线）。⚠️ `_meta.quota_remaining` 与 `query_quota` 的余量读的是服务端只读副本，**有分钟级同步延迟**（扣费实时写主库，副本约 2 分钟一同步）——刚扣完费立刻查余量可能显示旧值，精确余量以官网 mcp-tokens 面板为准
 
 ### 3.4 决策树禁忌
 
@@ -336,7 +336,7 @@ LLM 调 MCP 拿到的是**事实数据**，分析由 LLM 自行完成：
 | 结构化观点行（方向/时效/推理原文/观点日期） | `query_stock_opinions` / `get_daily_digest` | list[claim] |
 | 视频简介 + 8 维辩证维度标签 | `query_video_list` 等 video 类 tool | desc_text + dialectics_tags + framework_dimensions |
 | 多空计数 + 拐点 + TOP 引文 | `query_aggregated_sentiment` | long/short 计数 + 分布桶 |
-| 评论热词 / TOP5 脱敏热评 | `query_comments` | top_keywords + 可选 samples |
+| 评论热词 / TOP5 评论原文 | `query_comments` | top_keywords + 可选 samples |
 | 转录片段 / 5 类分析 | `search_video_transcripts` / `query_transcript_keywords` | snippet / 词频+NER+关键句 |
 
 **输出结构平台不规定**——按用户问题自由组织。常见通用范式（证券分析教材级别，非平台独有）：
@@ -766,7 +766,7 @@ check_new_video(known_id=上次id) → has_new=false → 零成本收工
 
 **LLM 输出**：
 > 未找到 30 天内关于"XX"的视频。建议：① 简化关键词 ② 扩时间窗口到 90 天 ③ 检查拼写。
-> tx_id: `uuid-xxx`（可在官网 mcp-tokens 页查用量）
+> tx_id: `uuid-xxx`（可在官网 mcp-tokens 面板查用量）
 
 ### 6.4 配额超限范本
 
@@ -974,7 +974,7 @@ curl -sS -X POST https://mcp.cesario.top/mcp \
 **A**：
 1. 免费体验额度 = 200 quota 终身一次性，不按月重置；用完升级 Pro 即可继续
 2. Pro = 3000 quota / 30 天滚动窗口，本期用尽等本期结束自动重置（按开通时间起算，非自然月）
-3. 用量随时在官网 mcp-tokens 页查看；如对扣费有疑问，欢迎登录官网联系开发者核对
+3. 用量随时在官网 mcp-tokens 面板查看；如对扣费有疑问，欢迎登录官网联系开发者核对
 
 ### 9.4 想拿 PE/估值（行情数据）
 
@@ -1053,6 +1053,9 @@ Read <宿主skills目录>/mr-model/OUTPUT-REFERENCE.md   # 与本 SKILL.md 同�
 - **A.4 边界行为**：0 命中 `_hint` / 分页 page_marker / 免疫字段
 ## 附录 B：变更日志
 
+- **v1.5.7** (2026-09-22) — 深链直达 + 文案收口
+  - 🟠 **token 获取一步到位**：官网 `/mcp-tokens` 深链直达——登录后自动弹出「MCP 数据接入」面板，无需再找「设置 → MCP 数据入口」；README 快速开始附面板截图
+  - 🟡 `query_comments` 样本描述统一为「评论原文（不含评论者任何标识）」，各处「mcp-tokens 页」统一为「面板」
 - **v1.5.6** (2026-09-22) — digest 动态计费：按返回内容扣费
   - 🔴 **get_daily_digest 定价改为动态计费**：1.5/期向上取整——0 期 **0 quota**（当天没更新调了也不白烧）、1 期 2、2 期 3、3 期 5、4 期 6、近 5 期 **8**（与原聚合轨锚点一致，不涨价）；day 模式按该日实际期数计
   - 🟡 `_meta.quota_cost` 反映实扣值；工具表/决策树/§3.3/§6.2.9 配额文案同步；服务端 `_calc_cost` 特化分支落地（2026-09-22 实测三场景：0 期→0 / 1 期→2 / 5 期→8）
@@ -1088,7 +1091,7 @@ Read <宿主skills目录>/mr-model/OUTPUT-REFERENCE.md   # 与本 SKILL.md 同�
   - 🟠 `search_videos` / `query_blogger_opinions` / `query_aggregated_sentiment` keyword 支持空格分隔多词 OR（≤10），多词不加价按合并去重行数计费；sentiment 多 keyword 返回 `{keyword: 单词结构}` 分组
 
 - **v1.4.5** (2026-09-13) — 配额账单强制播报
-  - 🔴 **§3.3 第 9 条升级 + §4.3 输出硬闸新增**：每次调用 MCP 后，给用户的总结发言末尾必须附「本次消耗清单 + 剩余 quota」一行（多 tool 逐项累加，单 tool 也照报；合规声明之前）。数据源 = 各返回 `_meta.quota_cost` 可信累加 + 最后一次 `_meta.quota_remaining`（分钟级延迟，精确余量以官网 mcp-tokens 页为准）
+  - 🔴 **§3.3 第 9 条升级 + §4.3 输出硬闸新增**：每次调用 MCP 后，给用户的总结发言末尾必须附「本次消耗清单 + 剩余 quota」一行（多 tool 逐项累加，单 tool 也照报；合规声明之前）。数据源 = 各返回 `_meta.quota_cost` 可信累加 + 最后一次 `_meta.quota_remaining`（分钟级延迟，精确余量以官网 mcp-tokens 面板为准）
   - 🟡 §6.1 成功范本补账单行示例（LLM 照抄格式）
 
 - **v1.4.4** (2026-09-13) — 仓库精简 + 单文件自更新
@@ -1105,9 +1108,9 @@ Read <宿主skills目录>/mr-model/OUTPUT-REFERENCE.md   # 与本 SKILL.md 同�
   - 🔴 **泄露面收敛**：`analysis_framework` 字段服务端全线下线（辩证元框架 prompt / 风险词表 / 三时段模板不再下发），§4 整章重写——删除 system prompt 4 件套拼装范本 / `<<<DIA>>>` 11 字段契约 / `_RISK_VOCABULARY` 词表 / 三时段模板 / 固定 3 段式输出模板；分析由客户端 LLM 基于事实数据自行组织（§4.1 素材清单）
   - 🔴 **6 功能 tool 新增**：`query_quota`(0) / `check_new_video`(0) / `watchlist_get`(0) 免费三件套 + `watchlist_set`(1) / `query_stock_opinions`(2+0.1/行，结构化观点直达，纯数字代码双向匹配) / `get_daily_digest`(8，晨报一键聚合 + watchlist 多级命中 direct★★★/mentioned★★)
   - 🟠 **query_video_list 增量三参**：`date_from`/`date_to`（CST 日界）+ `since_id` 游标，每日增量 1 次调用拿齐
-  - 🟠 **query_comments `include_samples=true`**：返 TOP5 脱敏热评原文（无评论者标识 + PII 正则 + ≤5 条），默认 false 合规行为不变，同 1 quota
+  - 🟠 **query_comments `include_samples=true`**：返 TOP5 评论原文（不含评论者任何标识，最多 5 条），默认 false 合规行为不变，同 1 quota
   - 🟠 **query_aggregated_sentiment 字段透出**：`long_count`/`short_count`/`long_short_ratio`/`top_long_quotes`/`top_short_quotes` + 分布桶 long/short/neutral（bull/bear 旧名已改 long/short，无兼容包袱）
-  - 🟠 **§3.3 第 9 条 quota_remaining 说法修正**：根因是读只读副本有分钟级同步延迟（非"恒定不递减"），quota_cost 可信，精确余量以官网 mcp-tokens 页为准
+  - 🟠 **§3.3 第 9 条 quota_remaining 说法修正**：根因是读只读副本有分钟级同步延迟（非"恒定不递减"），quota_cost 可信，精确余量以官网 mcp-tokens 面板为准
   - 🟡 决策树/参数速查/配额表/FAQ/附录 A 全面 11→17 tool；附录 A 补 A.3.7-A.3.12 六功能 tool 实测结构 + A.4 边界行为
 
 - **v1.3.3** (2026-09-04) — 生产实测校准（60 测试点全量 E2E 后修正）
@@ -1116,7 +1119,7 @@ Read <宿主skills目录>/mr-model/OUTPUT-REFERENCE.md   # 与本 SKILL.md 同�
   - 🔴 附录 A 全量真机重测（2026-09-04 生产采样）：comments 时间戳 epoch 秒 + top_keywords 二元组数组、tkw word_freq 键 weight + entities 内含 _ner_engine/_recall_warning、sentiment 实际字段（不返 bull/bear 计数与 quotes）、creator_meta 不透出 activity_score + 时间 epoch 秒、trending 三类词 dict 形态 + growth_ratio 键名、video 类 tool 单维 4 键 vs dimension_levels 单维 6 键（level/label）
   - 🟠 §3.2/§3.3/§3.1 参数默认值对齐 server schema（search_videos page_size=20 / query_blogger_opinions limit=20 / search_video_transcripts limit=20，配额示例数字连带修正）；删除 query_comments 幻影 `limit` 参数
   - 🟠 §3.5/§6.2.2 sentiment 0 命中行为修正：返空 weekly_distribution 无 _hint，补 LLM 降级路径（先放宽时间窗 → 降级 query_blogger_opinions 自行归纳）
-  - 🟠 §3.3 第 7 条 quota_remaining 不可靠警告（实测恒定不递减，余量以官网 mcp-tokens 页为准）
+  - 🟠 §3.3 第 7 条 quota_remaining 不可靠警告（实测恒定不递减，余量以官网 mcp-tokens 面板为准）
   - 🟡 版本号三处对齐（frontmatter 1.3.3 / manifest 1.3.3 / README 徽章 1.3.3）；aweme_id 强调 string 带引号；§2.3 补传输层无状态说明（无 Mcp-Session-Id，initialize 可选）
   - 附录 A 头部补数据免责声明（第三方采集延迟/缺失/主观偏差提示）
 
@@ -1139,7 +1142,7 @@ Read <宿主skills目录>/mr-model/OUTPUT-REFERENCE.md   # 与本 SKILL.md 同�
   - 全文内部词清理 + §6.4 配额重置机制描述对齐 30 天滚动窗口
 
 - **v1.3.0** (2026-09-03) — token 注册即有
-  - 1 人 1 token 免申请/免创建，完整明文随时在 mcp-tokens 页查看/复制（告别只展示一次），泄露点「重置」即换新（旧 token 立即失效）；错误兜底话术同步去「撤销/重新生成」流程
+  - 1 人 1 token 免申请/免创建，完整明文随时在 mcp-tokens 面板查看/复制（告别只展示一次），泄露点「重置」即换新（旧 token 立即失效）；错误兜底话术同步去「撤销/重新生成」流程
 
 - **v1.2.1** (2026-09-02) — 文档去价格化
   - 价格数字全部移除（README + SKILL.md 话术），统一「以官网公告为准」——避免改价后装机文档过期撒谎
