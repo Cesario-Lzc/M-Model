@@ -1,6 +1,6 @@
 # M-Model — A 股财经视频 MCP 调用框架
 
-[![Version](https://img.shields.io/badge/version-1.5.4-blue.svg)](https://github.com/Cesario-Lzc/M-Model)
+[![Version](https://img.shields.io/badge/version-1.5.6-blue.svg)](https://github.com/Cesario-Lzc/M-Model)
 [![MCP Server](https://img.shields.io/badge/MCP-15_tools-green.svg)](https://mcp.cesario.top)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey.svg)](#license)
 
@@ -97,15 +97,15 @@ bash install-mrmodel-skill.sh --dry-run        # 全流程预演，不落盘
 | 查配额余量 | `query_quota` | **免费** | `{limit, used, remaining, reset_at, is_lifetime}` |
 | 探测新视频 | `check_new_video` | **免费** | `{latest_aweme_id, has_new}`（轮询神器） |
 | 结构化观点追踪 | `query_stock_opinions` | 2+0.1/行 | **多标的批量**：空格分隔传个股/板块/概念，按标的分组返回历次看多/看空 + 时效 + 推理原文（"300308"也能查） |
-| 每日晨报 | `get_daily_digest` | 8 quota | **近 5 期动态**（当天没更新也照常有货）+ 多空方向 + 评论热词 |
+| 每日晨报 | `get_daily_digest` | **动态 1.5/期 ceil**（0 期免费） | **近 5 期动态**（当天没更新也照常有货）+ 多空方向 + 评论热词 |
 
-**调用事例**（每日自动化晨报，总 8 quota vs 散件 10+ quota）：
+**调用事例**（每日自动化晨报，近 5 期 = 8 quota vs 散件 10+ quota）：
 
 ```python
 # 每日定时：先免费探测，有更新才跑收费晨报
 quota = call("query_quota")                                    # 免费
 if call("check_new_video", known_id=last_id)["has_new"]:      # 免费
-    digest = call("get_daily_digest", date="2026-09-07")      # 8 quota 一次拿齐
+    digest = call("get_daily_digest")                          # 动态计费 1.5/期 ceil（近 5 期 = 8；0 期免费）
     # → 新视频 + 多空方向 + 评论热词
 # 用户问"中际旭创最近怎么说"（结构化观点直达，cost=4）
 opinions = call("query_stock_opinions", symbol_or_name="中际旭创", date_from="2026-08-08", limit=20)
@@ -153,7 +153,7 @@ opinions = call("query_stock_opinions", symbol_or_name="中际旭创", date_from
 
 ## 配额成本
 
-> **公式**：`cost = ⌈base + 行数 × per⌉ quota`（向上取整，防拖库；dict 返回走 base 单次）
+> **公式**：`cost = ⌈base + 行数 × per⌉ quota`（向上取整，防拖库；dict 返回走 base 单次；`get_daily_digest` 例外——按返回期数动态计 1.5/期 ceil，0 期 0）
 > **单位**：**quota**（配额点；Pro 享 3000 quota / 30 天滚动窗口，其余档位人人享 200 quota 终身体验额度，一次性不按月重置）
 
 ### 免费 tool（0 quota）
@@ -172,7 +172,7 @@ opinions = call("query_stock_opinions", symbol_or_name="中际旭创", date_from
 | `search_video_transcripts` | 2 | 0.05×N | 20 段 → **3 quota** |
 | `query_comments` / `query_real_desc_text` / `query_dimension_levels` / `query_creator_meta` | 1 | 0 | **1 quota** |
 | `query_transcript_keywords` / `query_aggregated_sentiment` / `query_trending_keywords` | 2 | 0 | **2 quota** |
-| `get_daily_digest` | 8 | 0 | **8 quota**（聚合轨，顶替散件 10+ quota 联调） |
+| `get_daily_digest` | — | 1.5/期 | **动态**：0 期 0 / 1 期 2 / 近 5 期 8（顶替散件 10+ quota 联调） |
 
 ## 免费体验与升级
 

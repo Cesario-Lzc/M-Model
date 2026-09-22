@@ -2,7 +2,7 @@
 name: mr-model
 description: 「模型先生」+ 任何问题（博主观点/视频检索/最近 30 天对个股怎么看/每日晨报/持仓观点追踪/盘前盘后观点雷达/自选股轨迹/多标的对比）→ 触发本 skill。内部按 15 tool 决策树调用 https://mcp.cesario.top（5 基础 tool + 6 高级 tool + 4 功能 tool：query_video_list / search_videos / query_blogger_opinions / search_video_transcripts / query_comments / query_real_desc_text / query_dimension_levels / query_transcript_keywords / query_aggregated_sentiment / query_creator_meta / query_trending_keywords / query_quota / check_new_video / query_stock_opinions / get_daily_digest），用 mcp_tokens Bearer 鉴权。输出模式：① 灵活模式（短问答/快查，简明扼要）② 详细模式（深度分析，可多空对照 + 分时段）③ 观点雷达模式（§4.4 通用骨架：盘前/盘后/周报/单标的轨迹/多标的横向对比）+ 合规硬闸（禁个股买卖方向/仓位/价位）。分析思路由客户端 LLM 基于事实数据自行组织（服务端只返事实数据，不下发任何分析框架/方法论字段）。建议结合您自行接入的行情数据源（公开行情接口 / 自有行情 skill）以获得「观点 + 价格」的更完整分析。需先设置 MR_MCP_TOKEN 环境变量或 ~/.config/mrmodel/token 文件。懒校验、不烧配额、version 比对式自更新。
 origin: custom
-version: 1.5.5
+version: 1.5.6
 ---
 
 # mrmodel-skill — mr-model MCP 调用框架
@@ -48,7 +48,7 @@ version: 1.5.5
 - **Pro**（价格以官网公告为准）：3000 quota / 30 天 + 15 tool 全量
 - **admin / sub_admin**：无限（-1）
 - 体验额度用尽返 429 `quota_exceeded`：终身体验额度一次性，不按月重置——升级 Pro 继续用（见 §9.8）
-- 💡 **省 quota 两件套**：`query_quota` / `check_new_video` 0 quota 免费；`get_daily_digest`(8) 一次顶替多次散调
+- 💡 **省 quota 两件套**：`query_quota` / `check_new_video` 0 quota 免费；`get_daily_digest` 动态计费（1.5/期 ceil：0 期 0 / 1 期 2 / 近 5 期 8）一次顶替多次散调
 
 ---
 
@@ -125,7 +125,7 @@ curl -s -X POST https://mcp.cesario.top/mcp \
 ```
 用户问题
 ├─ 含"今天/昨天" + "有什么新观点/晨报/日报/总结一下"？
-│   └─ YES → get_daily_digest()  ← 功能 tool，8 quota 一次拿齐
+│   └─ YES → get_daily_digest()  ← 功能 tool，动态计费一次拿齐（0 期免费）
 │            （不传 date=近 5 期动态永不空手；传 date=精确查某天；均附多空方向 + 评论热词）
 ├─ 含"盘前/盘后/雷达/观点汇总/自选股观点/持仓追踪"？
 │   └─ YES → **观点雷达模式**（见 §4.4：扩词硬闸→digest→转录分析→两层检索→8维指引→timeline 可视化）
@@ -201,14 +201,14 @@ curl -s -X POST https://mcp.cesario.top/mcp \
 
 #### 4 功能 tool（v1.4.0 新增）
 
-> 2 个**免费**（0 quota）+ query_stock_opinions(2+0.1/行) + get_daily_digest(8)
+> 2 个**免费**（0 quota）+ query_stock_opinions(2+0.1/行) + get_daily_digest(动态 1.5/期 ceil)
 
 | Tool | 必填 | 关键可选 | 默认值 | 配额成本 (quota) | 返回类型 |
 |------|------|----------|--------|------------------|----------|
 | `query_quota` | — | — | — | **0（免费）** | **dict**（quota_limit/quota_used/quota_remaining/window_started_at/reset_at/is_lifetime） |
 | `check_new_video` | — | `known_id` (已知最新 aweme_id) | — | **0（免费）** | **dict**（latest_aweme_id/latest_create_time/has_new） |
 | `query_stock_opinions` | `symbol_or_name` (≥2字) | `target_type`, `date_from`, `date_to`, `limit` (1-20) | limit=20 | base=2, per=0.1×N（limit=20 → 4） | **list[claim]**（结构化观点行，见 §6.2.8） |
-| `get_daily_digest` | — | `date` (YYYY-MM-DD), `include_comments`, `include_sentiment` | 近 5 期滚动 | 8 | **dict**（近 5 期动态或指定日新视频 + 评论热词，见 §6.2.9） |
+| `get_daily_digest` | — | `date` (YYYY-MM-DD), `include_comments`, `include_sentiment` | 近 5 期滚动 | **动态 1.5/期 ceil**（0 期 0 / 1 期 2 / 5 期 8） | **dict**（近 5 期动态或指定日新视频 + 评论热词，见 §6.2.9） |
 
 **关键差异（实测 2026-09-04）**：
 - ❌ 不是「list 包 dict」形态
@@ -246,7 +246,7 @@ videos = [json.loads(item.text) for item in response["result"]["content"] if ite
 > 单位：**quota**（配额点；Pro 3000 / 30 天滚动窗口，其余档位 200 quota 终身体验）
 
 1. **免费两件套先用**（v1.4.0）：自动化流程开头 `query_quota()` 探余额（0 quota）；轮询"更新了没"用 `check_new_video()`（0 quota），有更新才触发收费流程
-2. **晨报场景一次到位**：每日总结用 `get_daily_digest`（8 quota）顶替「query_video_list + N×query_stock_opinions + N×query_comments」散调（等效散件总价 ≥10 quota 还烧 LLM 归纳）
+2. **晨报场景一次到位**：每日总结用 `get_daily_digest`（动态 1.5/期 ceil，近 5 期 = 8 quota）顶替「query_video_list + N×query_stock_opinions + N×query_comments」散调（等效散件总价 ≥10 quota 还烧 LLM 归纳）；当天没更新 0 期返回**不扣费**
 3. **默认 page_size=20**（query_video_list 单次 cost=3 quota），超 20 提示用户"是否需要翻第 2 页"（page=2 需用户显式确认）
 4. **search_videos page_size=20**（cost=3 quota）+ **query_blogger_opinions limit=20**（cost=4 quota，默认足够覆盖博主典型 7-30 天观点；控成本可手动降到 limit=10 → cost=3）
 5. **search_video_transcripts limit=20**（cost=3 quota，snippet ≤65 字 × 20 = 约 1300 字；轻量快查可手动降到 limit=5 → cost=2，token 更经济）
@@ -262,7 +262,7 @@ videos = [json.loads(item.text) for item in response["result"]["content"] if ite
 - **不调 query_comments 整列表**（只对最新 1-2 个视频取评论，节省配额）
 - **不并行调多个高级 tool**（cost=2 叠加爆配额，串行调用更好）
 - **已知 aweme_id 时优先 query_real_desc_text**（避免先 query_video_list 拿 id 再调的中间步骤）
-- **晨报场景不拆散调**（query_video_list + 逐标的 query_stock_opinions + 逐视频 query_comments = 10+ quota 还烧 token，直接 get_daily_digest 8 quota 一次拿齐）
+- **晨报场景不拆散调**（query_video_list + 逐标的 query_stock_opinions + 逐视频 query_comments = 10+ quota 还烧 token，直接 get_daily_digest 动态计费一次拿齐——0 期免费，近 5 期 = 8）
 
 ### 3.5 0 命中处理（`_hint` 字段识别 + sentiment 空结果）
 
@@ -733,7 +733,7 @@ query_stock_opinions(symbol_or_name="铖昌科技 相控阵雷达 卫星导航 �
 **用户**：「模型先生，最近有什么新观点？」
 
 **LLM 行为**：
-1. `get_daily_digest()`（8 quota；**不传 date 默认=最近 5 期滚动窗口**，当天没更新也照常有货，quota 不白烧；传 `date="2026-09-07"` 则精确查该日全部新视频）
+1. `get_daily_digest()`（动态计费 1.5/期 ceil，0 期不扣费；**不传 date 默认=最近 5 期滚动窗口**，当天没更新也照常有货；传 `date="2026-09-07"` 则精确查该日全部新视频）
 
 **返回 dict**：
 - `date` / `mode`（recent=近 5 期 / day=指定日）/ `date_range`（仅 recent，如 "2026-09-16 ~ 2026-09-21"）/ `generated_at` / `new_video_count` / `new_videos`（每条附 `comment_top_keywords` TOP3 热词 + `direction` 多空方向 + `quote` 金句（有则带））
@@ -1053,6 +1053,9 @@ Read <宿主skills目录>/mr-model/OUTPUT-REFERENCE.md   # 与本 SKILL.md 同�
 - **A.4 边界行为**：0 命中 `_hint` / 分页 page_marker / 免疫字段
 ## 附录 B：变更日志
 
+- **v1.5.6** (2026-09-22) — digest 动态计费：按返回内容扣费
+  - 🔴 **get_daily_digest 定价改为动态计费**：1.5/期向上取整——0 期 **0 quota**（当天没更新调了也不白烧）、1 期 2、2 期 3、3 期 5、4 期 6、近 5 期 **8**（与原聚合轨锚点一致，不涨价）；day 模式按该日实际期数计
+  - 🟡 `_meta.quota_cost` 反映实扣值；工具表/决策树/§3.3/§6.2.9 配额文案同步；服务端 `_calc_cost` 特化分支落地（2026-09-22 实测三场景：0 期→0 / 1 期→2 / 5 期→8）
 - **v1.5.5** (2026-09-22) — digest 近 5 期化：当天没更新不再空手
   - 🟠 **get_daily_digest 默认语义变更**：不传 date 由「昨天」改为「**最近 5 期滚动窗口**」（跨天取最新 5 条视频），当天没新视频也满载返回，解决"没更新调了白烧 8 quota 返回空"问题；传 date 保留原语义（该日全部新视频）
   - 🟠 返回体新增 `mode`（recent/day）+ `date_range`（仅 recent，窗口跨度）；`date` 在 recent 模式回填窗口内最新一期日期（旧客户端兼容）

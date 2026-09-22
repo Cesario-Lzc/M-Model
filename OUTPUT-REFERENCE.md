@@ -1,4 +1,4 @@
-# mr-model MCP · 15 tool 返回结构参考（OUTPUT-REFERENCE v1.5.2）
+# mr-model MCP · 15 tool 返回结构参考（OUTPUT-REFERENCE v1.5.6）
 
 > **本文是 SKILL.md 的附属参考文件**（随 install 脚本一起装入 skill 目录），完整 JSON 字段结构在这里，SKILL.md 正文只留指针——按需 Read 本文件，省 token。
 > 数据免责声明：数据来自第三方博主公开视频的采集聚合，可能存在采集延迟、字段缺失或博主主观偏差；结构以生产实测为准，服务端升级后以 `tools/list` 实际返回为准。
@@ -258,7 +258,7 @@
 
 > **dict 返回，FastMCP 只拆 1 条 content item**（区别于 list 返回的 N 条），解析见 §3.2。无命中实体返 `{"hit": false, "claims": []}`，全部 0 命中返 `{"_hint": {...}}`。名称匹配双向：「中际旭创」命中「中际旭创(300308)」；「300308」也能命中。
 
-#### A.3.12 get_daily_digest（v1.5.5 实测，8 quota）
+#### A.3.12 get_daily_digest（v1.5.6 实测，动态计费 1.5/期 ceil：0 期 0 / 1 期 2 / 近 5 期 8）
 
 ```json
 {
@@ -277,7 +277,7 @@
       "quote": "博主本期原话金句"                  // 逐字转录摘取（≤100 字，无则不带此字段）
     }
   ],
-  "_meta": {"quota_cost": 8},
+  "_meta": {"quota_cost": 8},                    // 动态计费 = ⌈期数 × 1.5⌉，本例 5 期 → 8；0 期 → 0（不扣费）
   "_tx_id": "..."
 }
 ```
@@ -303,5 +303,5 @@
 
 v1.4.0 新增 tool 0 命中/边界行为：
 - `query_stock_opinions` → 标的无观点返空 list（0 条 content item）；纯数字代码也能命中（双向匹配）
-- `get_daily_digest` → **不传 date 恒返近 5 期**（当天没更新也满载，只有空库才返 `new_video_count: 0`）；传 date 该日无新视频返 `new_video_count: 0` + 空 `new_videos`（dict 恒有，不报错）
+- `get_daily_digest` → **不传 date 恒返近 5 期**（当天没更新也满载，只有空库才返 `new_video_count: 0`）；传 date 该日无新视频返 `new_video_count: 0` + 空 `new_videos`（dict 恒有，不报错）；0 期返回 **0 quota 不扣费**（动态计费按期数）
 - `check_new_video` → `known_id` 不存在（已删）保守按 `has_new: true`
