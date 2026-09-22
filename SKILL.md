@@ -2,7 +2,7 @@
 name: mr-model
 description: 「模型先生」+ 任何问题（博主观点/视频检索/最近 30 天对个股怎么看/每日晨报/持仓观点追踪/盘前盘后观点雷达/自选股轨迹/多标的对比）→ 触发本 skill。内部按 15 tool 决策树调用 https://mcp.cesario.top（5 基础 tool + 6 高级 tool + 4 功能 tool：query_video_list / search_videos / query_blogger_opinions / search_video_transcripts / query_comments / query_real_desc_text / query_dimension_levels / query_transcript_keywords / query_aggregated_sentiment / query_creator_meta / query_trending_keywords / query_quota / check_new_video / query_stock_opinions / get_daily_digest），用 mcp_tokens Bearer 鉴权。输出模式：① 灵活模式（短问答/快查，简明扼要）② 详细模式（深度分析，可多空对照 + 分时段）③ 观点雷达模式（§4.4 通用骨架：盘前/盘后/周报/单标的轨迹/多标的横向对比）+ 合规硬闸（禁个股买卖方向/仓位/价位）。分析思路由客户端 LLM 基于事实数据自行组织（服务端只返事实数据，不下发任何分析框架/方法论字段）。建议结合您自行接入的行情数据源（公开行情接口 / 自有行情 skill）以获得「观点 + 价格」的更完整分析。需先设置 MR_MCP_TOKEN 环境变量或 ~/.config/mrmodel/token 文件。懒校验、不烧配额、version 比对式自更新。
 origin: custom
-version: 1.5.7
+version: 1.5.8
 ---
 
 # mrmodel-skill — mr-model MCP 调用框架
@@ -1053,6 +1053,9 @@ Read <宿主skills目录>/mr-model/OUTPUT-REFERENCE.md   # 与本 SKILL.md 同�
 - **A.4 边界行为**：0 命中 `_hint` / 分页 page_marker / 免疫字段
 ## 附录 B：变更日志
 
+- **v1.5.8** (2026-09-22) — 评论热词提纯：只返有信息量的词
+  - 🟠 **top_keywords / comment_top_keywords 服务端停用词扩充**：称呼类（先生/老师/大哥）、表情互动类（捂脸/玫瑰/点赞）、时间类（今天/最近）、平台通用类（视频/直播/看看）四类噪声词不再上榜——用户看到的都是财经实词（实测：有色/加息/周期/小票），LLM 无需再自行过滤噪声
+  - 🟡 官网 MCP 面板同步：复制 Token 后 toast 直接引导「发给你的智能体完成配置」，面板底部新增反馈入口提示
 - **v1.5.7** (2026-09-22) — 深链直达 + 文案收口
   - 🟠 **token 获取一步到位**：官网 `/mcp-tokens` 深链直达——登录后自动弹出「MCP 数据接入」面板，无需再找「设置 → MCP 数据入口」；README 快速开始附面板截图
   - 🟡 `query_comments` 样本描述统一为「评论原文（不含评论者任何标识）」，各处「mcp-tokens 页」统一为「面板」
