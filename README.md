@@ -219,6 +219,4 @@ MIT — 自由使用，需保留版权声明。
 
 ## 反馈与讨论
 
-有疑问或想吐槽？欢迎来 [官网聊天室](https://mrmodel.cesario.top/chatroom) 讨论，或者直接让 Claude 代理帮您反馈意见。
-
-> 提示：装好后对 Claude 说「模型先生，有什么建议」或「反馈给模型先生」即可触发反馈流程。
+有疑问或想吐槽？欢迎来 [官网聊天室](https://mrmodel.cesario.top/chatroom) 讨论。
