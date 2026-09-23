@@ -27,27 +27,14 @@ curl -sL https://raw.githubusercontent.com/Cesario-Lzc/M-Model/main/install-mrmo
 
 ## Agent 自动安装（面向 AI 智能体，任意宿主通用）
 
-安装脚本专为「让 agent 代跑」设计：**不锁死宿主、非交互不卡死、结果可判读**。任何智能体平台（Claude Code / WorkBuddy / Cursor / CodeBuddy / 豆包 等）都可一行命令完成安装。
-
-### 宿主安装矩阵（自动探测，全装）
-
-| 探测路径（存在即装入） | 宿主 |
-|---|---|
-| `~/.claude/skills/mr-model` | Claude Code |
-| `~/.workbuddy/skills/mr-model` | WorkBuddy |
-| `~/.cursor/skills/mr-model` | Cursor |
-| `~/.codebuddy/skills/mr-model` | CodeBuddy |
-| `~/.doubao/agent_mode/workspace/.user_skills/mr-model` | 豆包 |
-
-- 上述都不存在 → fallback 装 `~/.claude/skills/mr-model`
-- 自定义单目录：`MRMODEL_SKILL_DIR=/your/path bash install-mrmodel-skill.sh`
+安装脚本专为「让 agent 代跑」设计：**不锁死宿主、非交互不卡死、结果可判读**。任何智能体平台（Claude Code / WorkBuddy / Cursor / CodeBuddy / 豆包 等）都可一行命令完成安装，**安装位置由脚本自动探测宿主决定**，无需人工指定。
 
 ### 安装契约 5 步（脚本自动完成）
 
-1. **探测宿主**：扫描上表路径，存在的宿主全部装入
+1. **探测宿主**：自动扫描机器上已有的智能体宿主，存在的全部装入（均未探测到则 fallback 到默认目录）
 2. **落盘 skill**：SKILL.md + OUTPUT-REFERENCE.md（CDN 直拉优先，sha256 与内嵌副本比对防旧版，失败 fallback 内嵌）
 3. **写 token**：env `MR_MCP_TOKEN` → 已有 token 文件 → 交互询问（非交互环境不卡死，跳过并给补配指引）
-4. **写 MCP 配置**：向已有宿主配置（`~/.workbuddy/mcp.json`、`~/.claude.json`、`~/.cursor/mcp.json` 等）写入/更新 `mr-model` 条目（url + Bearer + `X-Skill-Version`，原文件自动 `.bak` 备份）
+4. **写 MCP 配置**：向已探测到的宿主配置写入/更新 `mr-model` 条目（url + Bearer + `X-Skill-Version`，原文件自动 `.bak` 备份）
 5. **验证**：healthz 探活 + tools/list 鉴权（15 tool 全可见）
 
 ### env 契约
